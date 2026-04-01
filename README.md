@@ -21,6 +21,10 @@
 
 
 ## 📦 Included Features
+- **Alist Integration**: Stream music from your Alist servers (OneDrive, Google Drive, Lanczos, etc.)
+- **Sync Folders as Playlists**: Automatically create and sync playlists from Alist directories.
+- **Home Suggestions Mix**: Network music now appears in your Home screen recommendations.
+- **Optimized Suggestions UI**: Clear list format for Home suggestions, perfect for network tracks.
 - Fast!
 - Major bugs fixed
 - Samples
@@ -85,3 +89,9 @@ If you have any feature suggestions, please create an issue with detailed inform
 
 Retro Music Player is released under the GNU General Public License v3.0
 (GPLv3), which can be found [here](LICENSE.md)
+
+---
+
+## 🛠️ For Developers
+- **Fixed Debug Signature**: CI/CD builds now use a consistent debug signature. You can update apps built from GitHub Actions without uninstallation.
+- **Project Structure**: Based on RetroMusic with added Alist and Room repository patterns.
