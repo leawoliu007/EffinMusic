@@ -33,6 +33,7 @@ import code.name.monkey.appthemehelper.util.ColorUtil
 import code.name.monkey.appthemehelper.util.ToolbarContentTintHelper
 import code.name.monkey.retromusic.*
 import code.name.monkey.retromusic.adapter.HomeAdapter
+import code.name.monkey.retromusic.adapter.song.SongAdapter
 import code.name.monkey.retromusic.databinding.FragmentHomeBinding
 import code.name.monkey.retromusic.dialogs.CreatePlaylistDialog
 import code.name.monkey.retromusic.dialogs.ImportPlaylistDialog
@@ -44,7 +45,6 @@ import code.name.monkey.retromusic.fragments.ReloadType
 import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
 import code.name.monkey.retromusic.glide.RetroGlideExtension
 import code.name.monkey.retromusic.glide.RetroGlideExtension.profileBannerOptions
-import code.name.monkey.retromusic.glide.RetroGlideExtension.songCoverOptions
 import code.name.monkey.retromusic.glide.RetroGlideExtension.userProfileOptions
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.interfaces.IScrollHelper
@@ -248,43 +248,24 @@ class HomeFragment :
             binding.suggestions.root.isVisible = false
             return
         }
-        val images = listOf(
-            binding.suggestions.image1,
-            binding.suggestions.image2,
-            binding.suggestions.image3,
-            binding.suggestions.image4,
-            binding.suggestions.image5,
-            binding.suggestions.image6,
-            binding.suggestions.image7,
-            binding.suggestions.image8
+        
+        binding.suggestions.root.isVisible = true
+        
+        // Setup List View for suggestions
+        val suggestionAdapter = SongAdapter(
+            mainActivity,
+            songs.toMutableList(),
+            R.layout.item_list,
+            null,
+            false
         )
-        val color = accentColor()
-        binding.suggestions.message.apply {
-            setTextColor(color)
-            setOnClickListener {
-                it.isClickable = false
-                it.postDelayed({ it.isClickable = true }, 500)
-                MusicPlayerRemote.playNext(songs.subList(0, 8))
-                if (!MusicPlayerRemote.isPlaying) {
-                    MusicPlayerRemote.playNextSong()
-                }
-            }
+        
+        binding.suggestions.suggestionsRecyclerView.apply {
+            layoutManager = LinearLayoutManager(mainActivity)
+            adapter = suggestionAdapter
         }
-        binding.suggestions.card6.setCardBackgroundColor(ColorUtil.withAlpha(color, 0.12f))
-        images.forEachIndexed { index, imageView ->
-            imageView.setOnClickListener {
-                it.isClickable = false
-                it.postDelayed({ it.isClickable = true }, 500)
-                MusicPlayerRemote.playNext(songs[index])
-                if (!MusicPlayerRemote.isPlaying) {
-                    MusicPlayerRemote.playNextSong()
-                }
-            }
-            Glide.with(this)
-                .load(RetroGlideExtension.getSongModel(songs[index]))
-                .songCoverOptions(songs[index])
-                .into(imageView)
-        }
+
+        // Cleanup: Binding to those old IDs still exists but we don't set data to them
     }
 
     companion object {
