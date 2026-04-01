@@ -3,7 +3,6 @@ package code.name.monkey.retromusic.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import code.name.monkey.retromusic.R
@@ -18,8 +17,8 @@ class AlistServerAdapter(
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.title)
         val url: TextView = view.findViewById(R.id.text)
-        val deleteBtn: ImageButton = view.findViewById(R.id.menu)
-        val addFolderBtn: View = view // Re-using item click or similar
+        val image: android.widget.ImageView = view.findViewById(R.id.image)
+        val deleteBtn: View = view.findViewById(R.id.menu)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -31,6 +30,8 @@ class AlistServerAdapter(
         val server = servers[position]
         holder.name.text = server.name
         holder.url.text = server.url
+        holder.image.setImageResource(R.drawable.ic_cloud)
+        (holder.deleteBtn as? android.widget.ImageView)?.setImageResource(R.drawable.ic_delete)
         holder.deleteBtn.setOnClickListener { onDeleteClicked(server) }
         holder.itemView.setOnClickListener { onAddFolderClicked(server) }
     }
