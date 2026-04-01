@@ -357,6 +357,8 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
                         if (success) switchPlayer()
                         nextDataSource = null
                     }
+                } else {
+                    // Do nothing
                 }
             }
         }
