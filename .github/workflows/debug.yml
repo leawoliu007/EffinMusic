@@ -7,10 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        variant: [normalDebug] 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,8 +20,8 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      - name: Build APK
-        run: ./gradlew assemble${{ matrix.variant }}
+      - name: Build APK (NormalDebug)
+        run: ./gradlew assembleNormalDebug
 
       - name: Delete Old Artifacts
         uses: actions/github-script@v6
@@ -37,17 +33,30 @@ jobs:
               repo: context.repo.repo,
             })
           
-            res.data.artifacts
-              .forEach(({ id }) => {
-                github.rest.actions.deleteArtifact({
+            for (const artifact of res.data.artifacts) {
+                await github.rest.actions.deleteArtifact({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  artifact_id: id,
+                  artifact_id: artifact.id,
                 })
-              })
+            }
 
-      - name: Upload APK
+      - name: Upload Artifact (Backup)
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug.apk-${{ github.run_number }}
+          name: app-debug-${{ github.run_number }}
           path: app/build/outputs/apk/normal/debug/*.apk
+
+      - name: Create & Upload Debug Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: debug-v${{ github.run_number }}
+          name: Debug Build v${{ github.run_number }}
+          body: |
+            Debug build for testing.
+            Build Number: ${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: app/build/outputs/apk/normal/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

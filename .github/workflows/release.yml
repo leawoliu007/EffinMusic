@@ -7,10 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        variant: [NormalRelease, FdroidRelease]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,16 +26,31 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_SIGNING_KEY }}
 
-      - name: Build Release APK
-        run: ./gradlew assemble${{ matrix.variant }}
+      - name: Build All Release APKs
+        run: ./gradlew assembleNormalRelease assembleFdroidRelease
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      - name: Upload APK
+      - name: Upload Artifacts (Backup)
         uses: actions/upload-artifact@v4
         with:
-          name: app-signed-${{ matrix.variant }}-${{ github.run_number }}.apk
-          path: |
-            app/build/outputs/apk/${{ matrix.variant == 'NormalRelease' && 'normal' || 'fdroid' }}/release/*.apk
+          name: app-signed-all-${{ github.run_number }}
+          path: app/build/outputs/apk/**/*.apk
+
+      - name: Create & Upload GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: |
+            Automatic Release build from workflow.
+            Build Number: ${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            app/build/outputs/apk/normal/release/*.apk
+            app/build/outputs/apk/fdroid/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
