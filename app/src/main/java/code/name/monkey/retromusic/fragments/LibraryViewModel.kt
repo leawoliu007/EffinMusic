@@ -178,7 +178,7 @@ class LibraryViewModel(
 
     private fun exportDatabaseToExternalStorage(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
-            val dbFile = context.getDatabasePath("retro_database")
+            val dbFile = context.getDatabasePath("playlist.db")
             val exportDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             if (!exportDir.exists()) exportDir.mkdirs()
                 
