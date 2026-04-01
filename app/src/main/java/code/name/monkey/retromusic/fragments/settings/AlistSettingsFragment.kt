@@ -17,6 +17,7 @@ import code.name.monkey.retromusic.databinding.FragmentAlistSettingsBinding
 import code.name.monkey.retromusic.db.AlistDao
 import code.name.monkey.retromusic.db.AlistFolderEntity
 import code.name.monkey.retromusic.db.AlistServerEntity
+import code.name.monkey.retromusic.db.PlaylistEntity
 import code.name.monkey.retromusic.db.RetroDatabase
 import code.name.monkey.retromusic.extensions.showToast
 import code.name.monkey.retromusic.fragments.ReloadType
@@ -105,11 +106,11 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         showToast("Scanning library...")
         lifecycleScope.launch(Dispatchers.IO) {
             // TEST: Create a blank test playlist
-            val testName = "Alist_Test_Manual"
+            val FavoriteName = "MyFavoriteMusic"
             val db = RetroDatabase.getInstance(requireContext())
-            val existing = db.playlistDao().playlist(testName)
+            val existing = db.playlistDao().playlist(FavoriteName)
             if (existing.isEmpty()) {
-                db.playlistDao().createPlaylist(PlaylistEntity(playlistName = testName))
+                db.playlistDao().createPlaylist(PlaylistEntity(playlistName = FavoriteName))
             }
             
             val folders = alistDao.getAllFolders()
