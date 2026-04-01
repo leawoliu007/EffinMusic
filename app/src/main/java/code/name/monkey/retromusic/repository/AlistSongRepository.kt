@@ -83,22 +83,29 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         val client = AlistClient.create(server.url)
         val songs = mutableListOf<AlistSongEntity>()
         
-        // Recursive scan with limited depth
-        scanRecursive(client, server, remotePath, songs, currentDepth = 0, maxDepth = 4)
+        // Recursive scan
+        scanRecursive(client, server, remotePath, songs, 0, 4)
         
         if (songs.isNotEmpty()) {
             alistDao.insertSongs(songs)
             
-            // Auto Playlist creation
-            val playlistName = remotePath.substringAfterLast('/').ifEmpty { "Alist" }
-            val existingPlaylists = playlistDao.playlist(playlistName)
-            val playlistId = if (existingPlaylists.isNotEmpty()) {
-                existingPlaylists[0].playListId
+            // Name logic refinement
+            val cleanPath = remotePath.trimEnd('/')
+            val playlistName = if (cleanPath.isEmpty() || cleanPath == "/") {
+                server.name.ifEmpty { 
+                   server.url.removePrefix("http://").removePrefix("https://").substringBefore('/')
+                }
+            } else {
+                cleanPath.substringAfterLast('/')
+            }
+                              
+            val existing = playlistDao.playlists().find { it.playlistName == playlistName }
+            val playlistId = if (existing != null) {
+                existing.playListId
             } else {
                 playlistDao.createPlaylist(PlaylistEntity(playlistName = playlistName))
             }
             
-            // Clear and sync
             playlistDao.deletePlaylistSongs(playlistId)
             val playlistSongs = songs.map { alistSong ->
                 SongEntity(
@@ -133,7 +140,6 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         maxDepth: Int
     ) {
         if (currentDepth > maxDepth) return
-        
         try {
             val response = client.listFiles(AlistFsListRequest(path = path), server.token)
             if (response.code == 200 && response.data?.content != null) {
