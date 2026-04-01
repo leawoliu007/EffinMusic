@@ -21,7 +21,17 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build APK (NormalDebug)
-        run: ./gradlew assembleNormalDebug
+        run: |
+          mkdir -p app/keystore
+          echo "${{ secrets.DEBUG_KEYSTORE_BASE64 || 'nothing' }}" > app/keystore/tmp.base64
+          if [ "$(cat app/keystore/tmp.base64)" != "nothing" ]; then
+            echo "Using secret for keystore"
+            echo "${{ secrets.DEBUG_KEYSTORE_BASE64 }}" | base64 -d > app/keystore/debug.keystore
+          else
+            echo "Using repo file for keystore"
+            base64 -d app/keystore/debug.keystore.base64 > app/keystore/debug.keystore
+          fi
+          ./gradlew assembleNormalDebug
 
       - name: Delete Old Artifacts
         uses: actions/github-script@v6
