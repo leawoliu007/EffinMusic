@@ -185,36 +185,3 @@ dependencies {
     implementation libs.customactivityoncrash
     implementation libs.tankery.circularSeekBar
 }
-
-tasks.register('generateDebugKeystore') {
-    doLast {
-        def keystoreDir = file("keystore")
-        if (!keystoreDir.exists()) keystoreDir.mkdirs()
-        def keystoreFile = file("keystore/debug.keystore")
-        if (keystoreFile.exists()) {
-            println "Keystore already exists at ${keystoreFile.absolutePath}"
-            return
-        }
-
-        def keytoolPath = "${System.getProperty('java.home')}/bin/keytool"
-        if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
-            keytoolPath += ".exe"
-        }
-
-        println "Generating keystore using: ${keytoolPath}"
-        
-        exec {
-            commandLine keytoolPath, 
-                "-genkey", "-v", 
-                "-keystore", keystoreFile.absolutePath, 
-                "-storepass", "android", 
-                "-alias", "androiddebugkey", 
-                "-keypass", "android", 
-                "-keyalg", "RSA", 
-                "-keysize", "2048", 
-                "-validity", "10000", 
-                "-dname", "CN=Android Debug,O=Android,C=US"
-        }
-        println "Keystore generated successfully at ${keystoreFile.absolutePath}"
-    }
-}

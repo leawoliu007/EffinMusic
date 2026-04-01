@@ -20,15 +20,21 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
+      - name: Cache Debug Keystore
+        id: cache-keystore
+        uses: actions/cache@v4
+        with:
+          path: app/keystore/debug.keystore
+          key: ${{ runner.os }}-debug-keystore-v2
+
       - name: Build APK (NormalDebug)
         run: |
           mkdir -p app/keystore
-          # Decode the fixed keystore (ignoring any line breaks/garbage)
-          if base64 -di app/keystore/debug.keystore.base64 > app/keystore/debug.keystore 2>/dev/null; then
-            echo "Successfully decoded keystore from repo."
-          else
-            echo "Base64 decode failed, falling back to keytool generation..."
+          if [ "${{ steps.cache-keystore.outputs.cache-hit }}" != "true" ]; then
+            echo "Generating NEW persistent keystore..."
             keytool -genkey -v -keystore app/keystore/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -noprompt
+          else
+            echo "Using cached persistent keystore."
           fi
           ./gradlew assembleNormalDebug
 
