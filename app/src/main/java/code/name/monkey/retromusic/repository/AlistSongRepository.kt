@@ -4,15 +4,14 @@ import android.content.Context
 import android.database.Cursor
 import code.name.monkey.retromusic.alist.network.AlistClient
 import code.name.monkey.retromusic.alist.model.*
-import code.name.monkey.retromusic.db.AlistDao
-import code.name.monkey.retromusic.db.AlistServerEntity
-import code.name.monkey.retromusic.db.AlistSongEntity
-import code.name.monkey.retromusic.db.RetroDatabase
+import code.name.monkey.retromusic.db.*
 import code.name.monkey.retromusic.model.Song
 import kotlinx.coroutines.*
 
 class AlistSongRepository(private val context: Context) : SongRepository {
-    private val alistDao: AlistDao = RetroDatabase.getInstance(context).alistDao()
+    private val database = RetroDatabase.getInstance(context)
+    private val alistDao: AlistDao = database.alistDao()
+    private val playlistDao: PlaylistDao = database.playlistDao()
 
     override fun songs(hideDuplicates: Boolean): List<Song> {
         return runBlocking {
@@ -84,11 +83,44 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         val client = AlistClient.create(server.url)
         val songs = mutableListOf<AlistSongEntity>()
         
-        // Recursive scan with limited depth (default 4)
+        // Recursive scan with limited depth
         scanRecursive(client, server, remotePath, songs, currentDepth = 0, maxDepth = 4)
         
         if (songs.isNotEmpty()) {
             alistDao.insertSongs(songs)
+            
+            // Auto Playlist creation
+            val playlistName = remotePath.substringAfterLast('/').ifEmpty { "Alist" }
+            val existingPlaylists = playlistDao.playlist(playlistName)
+            val playlistId = if (existingPlaylists.isNotEmpty()) {
+                existingPlaylists[0].playListId
+            } else {
+                playlistDao.createPlaylist(PlaylistEntity(playlistName = playlistName))
+            }
+            
+            // Clear and sync
+            playlistDao.deletePlaylistSongs(playlistId)
+            val playlistSongs = songs.map { alistSong ->
+                SongEntity(
+                    playlistCreatorId = playlistId,
+                    id = alistSong.id,
+                    title = alistSong.title,
+                    trackNumber = alistSong.trackNumber,
+                    year = alistSong.year,
+                    duration = alistSong.duration,
+                    data = alistSong.data,
+                    dateModified = alistSong.dateModified,
+                    albumId = alistSong.albumId,
+                    albumName = alistSong.albumName,
+                    artistId = alistSong.artistId,
+                    artistName = alistSong.artistName,
+                    composer = alistSong.composer,
+                    albumArtist = alistSong.albumArtist,
+                    artistIds = alistSong.artistIds,
+                    artistNames = alistSong.artistNames
+                )
+            }
+            playlistDao.insertSongsToPlaylist(playlistSongs)
         }
     }
 

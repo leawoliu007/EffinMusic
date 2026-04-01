@@ -22,13 +22,13 @@ data class AlistFolderEntity(
 
 @Entity(tableName = "alist_song")
 data class AlistSongEntity(
-    @PrimaryKey val id: Long, // Hash of serverUrl + remotePath
+    @PrimaryKey val id: Long, 
     val serverId: Long,
     val title: String,
     val trackNumber: Int,
     val year: String?,
     val duration: Long,
-    val data: String, // This will be the Alist remote path
+    val data: String,
     val dateModified: Long,
     val albumId: Long,
     val albumName: String,
@@ -40,7 +40,7 @@ data class AlistSongEntity(
     val artistNames: String?,
     val rawUrl: String? = null,
     val sign: String? = null,
-    val expires: Long = 0 // Timestamp when rawUrl expires
+    val expires: Long = 0
 )
 
 @Dao
@@ -48,17 +48,26 @@ interface AlistDao {
     @Query("SELECT * FROM alist_server")
     suspend fun getAllServers(): List<AlistServerEntity>
 
+    @Query("SELECT * FROM alist_server WHERE id = :serverId")
+    suspend fun getServerById(serverId: Long): AlistServerEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertServer(server: AlistServerEntity): Long
 
     @Delete
     suspend fun deleteServer(server: AlistServerEntity)
 
+    @Query("SELECT * FROM alist_folder")
+    suspend fun getAllFolders(): List<AlistFolderEntity>
+
     @Query("SELECT * FROM alist_folder WHERE serverId = :serverId")
     suspend fun getFoldersForServer(serverId: Long): List<AlistFolderEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFolder(folder: AlistFolderEntity): Long
+
+    @Delete
+    suspend fun deleteFolder(folder: AlistFolderEntity)
 
     @Query("SELECT * FROM alist_song")
     suspend fun getAllSongs(): List<AlistSongEntity>
@@ -69,6 +78,6 @@ interface AlistDao {
     @Query("DELETE FROM alist_song WHERE serverId = :serverId")
     suspend fun deleteSongsByServer(serverId: Long)
     
-    @Query("SELECT * FROM alist_server WHERE id = :serverId")
-    suspend fun getServerById(serverId: Long): AlistServerEntity?
+    @Query("DELETE FROM alist_song WHERE serverId = :serverId AND data LIKE :path || '%'")
+    suspend fun deleteSongsByPath(serverId: Long, path: String)
 }
