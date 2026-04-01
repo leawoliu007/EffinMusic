@@ -9,7 +9,7 @@ import code.name.monkey.retromusic.db.AlistServerEntity
 import code.name.monkey.retromusic.db.AlistSongEntity
 import code.name.monkey.retromusic.db.RetroDatabase
 import code.name.monkey.retromusic.model.Song
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 class AlistSongRepository(private val context: Context) : SongRepository {
     private val alistDao: AlistDao = RetroDatabase.getInstance(context).alistDao()
@@ -20,7 +20,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         }
     }
 
-    override fun songs(cursor: Cursor?): List<Song> = emptyList() // Not using cursors for Alist
+    override fun songs(cursor: Cursor?): List<Song> = emptyList()
     override fun sortedSongs(cursor: Cursor?): List<Song> = songs()
     override fun songs(query: String): List<Song> {
         return songs().filter { it.title.contains(query, true) || it.artistName.contains(query, true) }
@@ -41,7 +41,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         trackNumber = trackNumber,
         year = year,
         duration = duration,
-        data = rawUrl ?: data, // For Alist, 'data' is remotePath, but we prefer rawUrl for playback
+        data = rawUrl ?: data,
         dateModified = dateModified,
         albumId = albumId,
         albumName = albumName,
@@ -53,12 +53,10 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         artistNames = artistNames
     )
 
-    // Helper to resolve the real download URL
     suspend fun resolvePlaybackUrl(song: Song): String? {
         val songEntity = alistDao.getAllSongs().find { it.id == song.id } ?: return null
         val server = alistDao.getServerById(songEntity.serverId) ?: return null
         
-        // Return cached if not expired
         if (songEntity.rawUrl != null && songEntity.expires > System.currentTimeMillis()) {
             return songEntity.rawUrl
         }
@@ -67,10 +65,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         return try {
             val response = client.getFile(AlistFsGetRequest(path = songEntity.data), server.token)
             if (response.code == 200 && response.data?.rawUrl != null) {
-                // Update cache
                 val updated = songEntity.copy(
                     rawUrl = response.data.rawUrl,
-                    expires = System.currentTimeMillis() + 3600000 // 1 hour
+                    expires = System.currentTimeMillis() + 3600000
                 )
                 alistDao.insertSongs(listOf(updated))
                 response.data.rawUrl
@@ -82,21 +79,40 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         }
     }
 
-    // Helper to scan a folder and update cache
     suspend fun scanFolder(serverId: Long, remotePath: String) {
         val server = alistDao.getServerById(serverId) ?: return
         val client = AlistClient.create(server.url)
         val songs = mutableListOf<AlistSongEntity>()
         
+        // Recursive scan with limited depth (default 4)
+        scanRecursive(client, server, remotePath, songs, currentDepth = 0, maxDepth = 4)
+        
+        if (songs.isNotEmpty()) {
+            alistDao.insertSongs(songs)
+        }
+    }
+
+    private suspend fun scanRecursive(
+        client: code.name.monkey.retromusic.alist.network.AlistService,
+        server: AlistServerEntity,
+        path: String,
+        results: MutableList<AlistSongEntity>,
+        currentDepth: Int,
+        maxDepth: Int
+    ) {
+        if (currentDepth > maxDepth) return
+        
         try {
-            val response = client.listFiles(AlistFsListRequest(path = remotePath), server.token)
+            val response = client.listFiles(AlistFsListRequest(path = path), server.token)
             if (response.code == 200 && response.data?.content != null) {
                 for (file in response.data.content) {
-                    if (!file.isDir && isAudioFile(file.name)) {
-                        songs.add(fileToEntity(file, remotePath, server))
+                    val fullPath = if (path == "/") "/${file.name}" else "$path/${file.name}"
+                    if (file.isDir) {
+                        scanRecursive(client, server, fullPath, results, currentDepth + 1, maxDepth)
+                    } else if (isAudioFile(file.name)) {
+                        results.add(fileToEntity(file, path, server))
                     }
                 }
-                alistDao.insertSongs(songs)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -105,14 +121,12 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
     private fun isAudioFile(name: String): Boolean {
         val extension = name.substringAfterLast('.', "").lowercase()
-        return listOf("mp3", "flac", "m4a", "wav", "ogg", "aac", "opus").contains(extension)
+        return listOf("mp3", "flac", "m4a", "wav", "ogg", "aac", "opus", "ape", "wma", "m4b", "aiff", "aif", "dsf", "dff").contains(extension)
     }
 
     private fun fileToEntity(file: AlistFile, parentPath: String, server: AlistServerEntity): AlistSongEntity {
         val remotePath = if (parentPath == "/") "/${file.name}" else "$parentPath/${file.name}"
-        // Stable but unique ID
-        val id = (server.url + remotePath).hashCode().toLong() or (1L shl 63).inv().inv() // Force high bit or similar
-        // For simplicity, generate a negative ID
+        val id = (server.url + remotePath).hashCode().toLong()
         val negativeId = -Math.abs(id)
         
         return AlistSongEntity(
@@ -121,9 +135,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             title = file.name.substringBeforeLast('.'),
             trackNumber = 0,
             year = null,
-            duration = 0, // Need to get duration from tags if possible, or leave 0
+            duration = 0,
             data = remotePath,
-            dateModified = 0, // Convert modified string
+            dateModified = 0,
             albumId = -1,
             albumName = "Alist",
             artistId = -1,
