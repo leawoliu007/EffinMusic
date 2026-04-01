@@ -275,16 +275,28 @@ class MultiPlayer(context: Context) : LocalPlayback(context) {
         completion: (success: Boolean) -> Unit,
     ) {
         isInitialized = false
-        setDataSourceImpl(mCurrentMediaPlayer, song.uri.toString()) { success ->
-            isInitialized = success
-            if (isInitialized) {
-                setNextDataSource(null)
-                initAudioEffects()
-                openAudioEffectSession()
-                applyEqualizerPreferences()
-                applyReplayGain(song)
+        val alistRepo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
+        
+        scope.launch {
+            val dataSource = if (song.id < 0) {
+                alistRepo.resolvePlaybackUrl(song) ?: song.data
+            } else {
+                song.uri.toString()
             }
-            completion(isInitialized)
+            
+            withContext(Dispatchers.Main) {
+                setDataSourceImpl(mCurrentMediaPlayer, dataSource) { success ->
+                    isInitialized = success
+                    if (isInitialized) {
+                        setNextDataSource(null)
+                        initAudioEffects()
+                        openAudioEffectSession()
+                        applyEqualizerPreferences()
+                        applyReplayGain(song)
+                    }
+                    completion(isInitialized)
+                }
+            }
         }
     }
 

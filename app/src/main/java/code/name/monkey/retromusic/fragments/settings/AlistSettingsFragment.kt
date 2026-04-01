@@ -1,0 +1,160 @@
+package code.name.monkey.retromusic.fragments.settings
+
+import android.os.Bundle
+import android.view.View
+import androidx.appcompat.app.AlertDialog
+import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import code.name.monkey.retromusic.R
+import code.name.monkey.retromusic.alist.network.AlistClient
+import code.name.monkey.retromusic.databinding.FragmentAlistSettingsBinding
+import code.name.monkey.retromusic.db.AlistDao
+import code.name.monkey.retromusic.db.AlistFolderEntity
+import code.name.monkey.retromusic.db.AlistServerEntity
+import code.name.monkey.retromusic.db.RetroDatabase
+import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
+import code.name.monkey.retromusic.repository.AlistSongRepository
+import com.google.android.material.textfield.TextInputEditText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.koin.android.ext.android.inject
+
+class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_settings) {
+    private var _binding: FragmentAlistSettingsBinding? = null
+    private val binding get() = _binding!!
+    private val alistRepo: AlistSongRepository by inject()
+    private lateinit var alistDao: AlistDao
+
+    private lateinit var adapter: AlistServerAdapter
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        _binding = FragmentAlistSettingsBinding.bind(view)
+        alistDao = RetroDatabase.getInstance(requireContext()).alistDao()
+
+        mainActivity.setSupportActionBar(binding.toolbar)
+        mainActivity.supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.title = "Alist Servers"
+
+        adapter = AlistServerAdapter(emptyList(), { server ->
+            deleteServer(server)
+        }, { server ->
+            showAddFolderDialog(server)
+        })
+        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerView.adapter = adapter
+
+        binding.addServerFab.setOnClickListener {
+            showAddServerDialog()
+        }
+
+        loadServers()
+    }
+
+    private fun loadServers() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val servers = alistDao.getAllServers()
+            withContext(Dispatchers.Main) {
+                if (servers.isEmpty()) {
+                    binding.emptyState.isVisible = true
+                } else {
+                    binding.emptyState.isVisible = false
+                    adapter.updateData(servers)
+                }
+            }
+        }
+    }
+
+    private fun deleteServer(server: AlistServerEntity) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            alistDao.deleteServer(server)
+            alistDao.deleteSongsByServer(server.id)
+            loadServers()
+        }
+    }
+
+    private fun showAddFolderDialog(server: AlistServerEntity) {
+        val bundle = Bundle()
+        bundle.putLong("serverId", server.id)
+        findNavController().navigate(R.id.action_alistSettingsFragment_to_alistFolderBrowserFragment, bundle)
+    }
+
+    private fun addFolder(serverId: Long, path: String) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val folder = AlistFolderEntity(serverId = serverId, remotePath = path, name = path.substringAfterLast('/'))
+            alistDao.insertFolder(folder)
+            // Trigger scan
+            alistRepo.scanFolder(serverId, path)
+            withContext(Dispatchers.Main) {
+                mainActivity.showToast("Scanning folder...")
+            }
+        }
+    }
+
+    private fun showAddServerDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_add_alist_server, null)
+        val nameInput = view.findViewById<TextInputEditText>(R.id.serverName)
+        val urlInput = view.findViewById<TextInputEditText>(R.id.serverUrl)
+        val userInput = view.findViewById<TextInputEditText>(R.id.username)
+        val passInput = view.findViewById<TextInputEditText>(R.id.password)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Alist Server")
+            .setView(view)
+            .setPositiveButton("Add") { _, _ ->
+                val server = AlistServerEntity(
+                    name = nameInput.text.toString(),
+                    url = urlInput.text.toString(),
+                    username = userInput.text.toString(),
+                    password = passInput.text.toString()
+                )
+                saveServer(server)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun saveServer(server: AlistServerEntity) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            alistDao.insertServer(server)
+            loadServers()
+        }
+    }
+
+    private fun showAddServerDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_add_alist_server, null)
+        val nameInput = view.findViewById<TextInputEditText>(R.id.serverName)
+        val urlInput = view.findViewById<TextInputEditText>(R.id.serverUrl)
+        val userInput = view.findViewById<TextInputEditText>(R.id.username)
+        val passInput = view.findViewById<TextInputEditText>(R.id.password)
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Alist Server")
+            .setView(view)
+            .setPositiveButton("Add") { _, _ ->
+                val server = AlistServerEntity(
+                    name = nameInput.text.toString(),
+                    url = urlInput.text.toString(),
+                    username = userInput.text.toString(),
+                    password = passInput.text.toString()
+                )
+                saveServer(server)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun saveServer(server: AlistServerEntity) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            alistDao.insertServer(server)
+            loadServers()
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}

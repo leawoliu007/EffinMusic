@@ -123,10 +123,57 @@ val MIGRATION_28_29 = object : Migration(28, 29) {
     }
 }
 
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS alist_server (
+                id INTEGER PRIMARY KEY AUTO_INCREMENT NOT NULL,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                username TEXT NOT NULL,
+                password TEXT NOT NULL,
+                token TEXT
+            )
+        """.trimIndent())
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS alist_folder (
+                id INTEGER PRIMARY KEY AUTO_INCREMENT NOT NULL,
+                serverId INTEGER NOT NULL,
+                remotePath TEXT NOT NULL,
+                name TEXT NOT NULL
+            )
+        """.trimIndent())
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS alist_song (
+                id INTEGER PRIMARY KEY NOT NULL,
+                serverId INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                trackNumber INTEGER NOT NULL,
+                year TEXT,
+                duration INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                dateModified INTEGER NOT NULL,
+                albumId INTEGER NOT NULL,
+                albumName TEXT NOT NULL,
+                artistId INTEGER NOT NULL,
+                artistName TEXT NOT NULL,
+                composer TEXT,
+                albumArtist TEXT,
+                artistIds TEXT,
+                artistNames TEXT,
+                rawUrl TEXT,
+                sign TEXT,
+                expires INTEGER NOT NULL DEFAULT 0
+            )
+        """.trimIndent())
+    }
+}
+
 val allMigrations = arrayOf(
     MIGRATION_23_24,
     MIGRATION_25_26,
     MIGRATION_26_27,
     MIGRATION_27_28,
-    MIGRATION_28_29
+    MIGRATION_28_29,
+    MIGRATION_29_30
 )

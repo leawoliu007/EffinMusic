@@ -141,12 +141,23 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
     ) {
         if (force) hasDataSource = false
         mIsInitialized = false
+        val alistRepo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
+
         /* We've already set DataSource if initialized is true in setNextDataSource */
         if (!hasDataSource) {
-            getCurrentPlayer()?.let {
-                setDataSourceImpl(it, song.uri.toString()) { success ->
-                    mIsInitialized = success
-                    completion(success)
+            getCurrentPlayer()?.let { player ->
+                scope.launch {
+                    val dataSource = if (song.id < 0) {
+                        alistRepo.resolvePlaybackUrl(song) ?: song.data
+                    } else {
+                        song.uri.toString()
+                    }
+                    withContext(Dispatchers.Main) {
+                        setDataSourceImpl(player, dataSource) { success ->
+                            mIsInitialized = success
+                            completion(success)
+                        }
+                    }
                 }
             }
             hasDataSource = true
@@ -323,10 +334,19 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
                 // And MusicPlayerRemote don't have access to MusicService
                 if (nextSong != null && nextSong != Song.emptySong) {
                     nextDataSource = null
-                    setDataSourceImpl(player, nextSong.uri.toString()) { success ->
-                        if (success) switchPlayer()
+                    val alistRepo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
+                    launch {
+                        val dataSource = if (nextSong.id < 0) {
+                            alistRepo.resolvePlaybackUrl(nextSong) ?: nextSong.data
+                        } else {
+                            nextSong.uri.toString()
+                        }
+                        withContext(Dispatchers.Main) {
+                            setDataSourceImpl(player, dataSource) { success ->
+                                if (success) switchPlayer()
+                            }
+                        }
                     }
-
                 }
                 // So we have to use the previously stored nextDataSource value
                 else if (!nextDataSource.isNullOrEmpty()) {

@@ -100,7 +100,15 @@
     <fragment
         android:id="@+id/otherSettingsFragment"
         android:name="code.name.monkey.retromusic.fragments.settings.OtherSettingsFragment"
-        android:label="Other" />
+        android:label="Other">
+        <action
+            android:id="@+id/action_otherSettingsFragment_to_alistSettingsFragment"
+            app:destination="@id/alistSettingsFragment"
+            app:enterAnim="@anim/retro_fragment_open_enter"
+            app:exitAnim="@anim/retro_fragment_open_exit"
+            app:popEnterAnim="@anim/retro_fragment_close_enter"
+            app:popExitAnim="@anim/retro_fragment_close_exit" />
+    </fragment>
 
     <fragment
         android:id="@+id/personalizeSettingsFragment"
@@ -121,4 +129,22 @@
         android:id="@+id/backup_fragment"
         android:name="code.name.monkey.retromusic.fragments.backup.BackupFragment"
         android:label="About" />
+    <fragment
+        android:id="@+id/alistSettingsFragment"
+        android:name="code.name.monkey.retromusic.fragments.settings.AlistSettingsFragment"
+        android:label="Alist Settings">
+        <action
+            android:id="@+id/action_alistSettingsFragment_to_alistFolderBrowserFragment"
+            app:destination="@id/alistFolderBrowserFragment"
+            app:enterAnim="@anim/retro_fragment_open_enter"
+            app:exitAnim="@anim/retro_fragment_open_exit"
+            app:popEnterAnim="@anim/retro_fragment_close_enter"
+            app:popExitAnim="@anim/retro_fragment_close_exit" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/alistFolderBrowserFragment"
+        android:name="code.name.monkey.retromusic.fragments.settings.AlistFolderBrowserFragment"
+        android:label="Browse Alist" />
+
 </navigation>

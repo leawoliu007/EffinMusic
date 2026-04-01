@@ -95,6 +95,12 @@
             android:summary="@string/pref_summary_artist_delimiters"
             android:title="@string/pref_title_artist_delimiters" />
 
+        <Preference
+            android:key="alist_settings"
+            android:layout="@layout/list_item_view"
+            android:title="Alist Settings"
+            app:icon="@drawable/ic_cloud" />
+
     </code.name.monkey.appthemehelper.common.prefs.supportv7.ATEPreferenceCategory>
     <code.name.monkey.appthemehelper.common.prefs.supportv7.ATEListPreference
         android:defaultValue="auto"

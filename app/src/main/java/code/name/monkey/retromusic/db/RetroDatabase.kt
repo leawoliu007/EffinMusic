@@ -21,8 +21,17 @@ import androidx.room.RoomDatabase
 import code.name.monkey.retromusic.db.SongMetadataEntity
 
 @Database(
-    entities = [PlaylistEntity::class, SongEntity::class, HistoryEntity::class, PlayCountEntity::class, SongMetadataEntity::class],
-    version = 29,
+    entities = [
+        PlaylistEntity::class,
+        SongEntity::class,
+        HistoryEntity::class,
+        PlayCountEntity::class,
+        SongMetadataEntity::class,
+        AlistServerEntity::class,
+        AlistFolderEntity::class,
+        AlistSongEntity::class
+    ],
+    version = 30,
     exportSchema = false
 )
 abstract class RetroDatabase : RoomDatabase() {
@@ -30,6 +39,7 @@ abstract class RetroDatabase : RoomDatabase() {
     abstract fun playCountDao(): PlayCountDao
     abstract fun historyDao(): HistoryDao
     abstract fun songMetadataDao(): SongMetadataDao
+    abstract fun alistDao(): AlistDao
 
     companion object {
         @Volatile

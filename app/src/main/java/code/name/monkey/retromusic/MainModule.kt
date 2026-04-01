@@ -101,7 +101,15 @@ private val dataModule = module {
     } bind Repository::class
 
     single {
-        RealSongRepository(get())
+        MediaStoreSongRepository(get())
+    }
+
+    single {
+        AlistSongRepository(get())
+    }
+
+    single {
+        CombinedSongRepository(get<MediaStoreSongRepository>(), get<AlistSongRepository>())
     } bind SongRepository::class
 
     single {

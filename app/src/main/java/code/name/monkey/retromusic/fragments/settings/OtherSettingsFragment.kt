@@ -97,6 +97,11 @@ class OtherSettingsFragment : AbsSettingsFragment(),
             true
         }
 
+        findPreference<Preference>("alist_settings")?.setOnPreferenceClickListener {
+            findNavController().navigate(R.id.action_otherSettingsFragment_to_alistSettingsFragment)
+            true
+        }
+
         updateForceScan()
     }
 

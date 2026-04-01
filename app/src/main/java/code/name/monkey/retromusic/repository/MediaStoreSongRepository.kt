@@ -59,7 +59,7 @@ interface SongRepository {
     fun song(songId: Long): Song
 }
 
-class RealSongRepository(private val context: Context) : SongRepository {
+class MediaStoreSongRepository(private val context: Context) : SongRepository {
 
     private val metadataDao: SongMetadataDao = RetroDatabase.getInstance(context).songMetadataDao()
 
