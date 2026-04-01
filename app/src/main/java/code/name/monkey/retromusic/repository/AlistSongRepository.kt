@@ -2,6 +2,7 @@ package code.name.monkey.retromusic.repository
 
 import android.content.Context
 import android.database.Cursor
+import android.util.Log
 import code.name.monkey.retromusic.alist.network.AlistClient
 import code.name.monkey.retromusic.alist.model.*
 import code.name.monkey.retromusic.db.*
@@ -12,6 +13,10 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     private val database = RetroDatabase.getInstance(context)
     private val alistDao: AlistDao = database.alistDao()
     private val playlistDao: PlaylistDao = database.playlistDao()
+
+    companion object {
+        private const val TAG = "AlistSongRepository"
+    }
 
     override fun songs(hideDuplicates: Boolean): List<Song> {
         return runBlocking {
@@ -83,51 +88,63 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         val client = AlistClient.create(server.url)
         val songs = mutableListOf<AlistSongEntity>()
         
-        // Recursive scan
+        Log.d(TAG, "Scanning Alist folder: $remotePath")
         scanRecursive(client, server, remotePath, songs, 0, 4)
         
         if (songs.isNotEmpty()) {
             alistDao.insertSongs(songs)
+            Log.d(TAG, "Inserted ${songs.size} Alist songs into DB")
             
-            // Name logic refinement
+            // Playlist creation logic
             val cleanPath = remotePath.trimEnd('/')
             val playlistName = if (cleanPath.isEmpty() || cleanPath == "/") {
                 server.name.ifEmpty { 
-                   server.url.removePrefix("http://").removePrefix("https://").substringBefore('/')
+                   server.url.removePrefix("http://").removePrefix("https://").substringBefore('/').ifEmpty { "Alist" }
                 }
             } else {
                 cleanPath.substringAfterLast('/')
             }
-                              
-            val existing = playlistDao.playlists().find { it.playlistName == playlistName }
-            val playlistId = if (existing != null) {
-                existing.playListId
-            } else {
-                playlistDao.createPlaylist(PlaylistEntity(playlistName = playlistName))
-            }
             
-            playlistDao.deletePlaylistSongs(playlistId)
-            val playlistSongs = songs.map { alistSong ->
-                SongEntity(
-                    playlistCreatorId = playlistId,
-                    id = alistSong.id,
-                    title = alistSong.title,
-                    trackNumber = alistSong.trackNumber,
-                    year = alistSong.year,
-                    duration = alistSong.duration,
-                    data = alistSong.data,
-                    dateModified = alistSong.dateModified,
-                    albumId = alistSong.albumId,
-                    albumName = alistSong.albumName,
-                    artistId = alistSong.artistId,
-                    artistName = alistSong.artistName,
-                    composer = alistSong.composer,
-                    albumArtist = alistSong.albumArtist,
-                    artistIds = alistSong.artistIds,
-                    artistNames = alistSong.artistNames
-                )
+            Log.d(TAG, "Target playlist name: $playlistName")
+            
+            // Room transaction
+            withContext(Dispatchers.IO) {
+                val existing = playlistDao.playlist(playlistName)
+                val playlistId = if (existing.isNotEmpty()) {
+                    Log.d(TAG, "Found existing playlist with ID: ${existing[0].playListId}")
+                    existing[0].playListId
+                } else {
+                    val newId = playlistDao.createPlaylist(PlaylistEntity(playlistName = playlistName))
+                    Log.d(TAG, "Created new playlist with ID: $newId")
+                    newId
+                }
+                
+                playlistDao.deletePlaylistSongs(playlistId)
+                val playlistSongs = songs.map { alistSong ->
+                    SongEntity(
+                        playlistCreatorId = playlistId,
+                        id = alistSong.id,
+                        title = alistSong.title,
+                        trackNumber = alistSong.trackNumber,
+                        year = alistSong.year,
+                        duration = alistSong.duration,
+                        data = alistSong.data,
+                        dateModified = alistSong.dateModified,
+                        albumId = alistSong.albumId,
+                        albumName = alistSong.albumName,
+                        artistId = alistSong.artistId,
+                        artistName = alistSong.artistName,
+                        composer = alistSong.composer,
+                        albumArtist = alistSong.albumArtist,
+                        artistIds = alistSong.artistIds,
+                        artistNames = alistSong.artistNames
+                    )
+                }
+                playlistDao.insertSongsToPlaylist(playlistSongs)
+                Log.d(TAG, "Playlist sync complete for $playlistName")
             }
-            playlistDao.insertSongsToPlaylist(playlistSongs)
+        } else {
+            Log.w(TAG, "No songs found in Alist folder: $remotePath")
         }
     }
 
@@ -153,7 +170,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Scan failed at $path: ${e.message}")
         }
     }
 

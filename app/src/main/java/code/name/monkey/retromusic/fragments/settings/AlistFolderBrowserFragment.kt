@@ -25,6 +25,7 @@ import org.koin.android.ext.android.inject
 import code.name.monkey.retromusic.repository.AlistSongRepository
 import code.name.monkey.retromusic.alist.model.AlistFsListRequest
 import code.name.monkey.retromusic.extensions.showToast
+import code.name.monkey.retromusic.fragments.ReloadType
 
 class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_alist_folder_browser), BreadCrumbLayout.SelectionCallback {
     private var _binding: FragmentAlistFolderBrowserBinding? = null
@@ -133,6 +134,7 @@ class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_ali
                 alistRepo.scanFolder(serverId, path)
             }
             withContext(Dispatchers.Main) {
+                libraryViewModel.forceReload(ReloadType.Playlists)
                 findNavController().popBackStack()
             }
         }

@@ -108,6 +108,7 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
                 alistRepo.scanFolder(folder.serverId, folder.remotePath)
             }
             withContext(Dispatchers.Main) {
+                libraryViewModel.forceReload(ReloadType.Playlists)
                 showToast("Library scan complete")
             }
         }
