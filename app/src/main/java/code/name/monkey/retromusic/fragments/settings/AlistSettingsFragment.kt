@@ -1,18 +1,23 @@
 package code.name.monkey.retromusic.fragments.settings
 
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import code.name.monkey.retromusic.R
-import code.name.monkey.retromusic.alist.network.AlistClient
+import code.name.monkey.retromusic.adapter.AlistServerAdapter
 import code.name.monkey.retromusic.databinding.FragmentAlistSettingsBinding
 import code.name.monkey.retromusic.db.AlistDao
 import code.name.monkey.retromusic.db.AlistFolderEntity
 import code.name.monkey.retromusic.db.AlistServerEntity
 import code.name.monkey.retromusic.db.RetroDatabase
+import code.name.monkey.retromusic.extensions.showToast
 import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
 import code.name.monkey.retromusic.repository.AlistSongRepository
 import com.google.android.material.textfield.TextInputEditText
@@ -57,11 +62,13 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         lifecycleScope.launch(Dispatchers.IO) {
             val servers = alistDao.getAllServers()
             withContext(Dispatchers.Main) {
-                if (servers.isEmpty()) {
-                    binding.emptyState.isVisible = true
-                } else {
-                    binding.emptyState.isVisible = false
-                    adapter.updateData(servers)
+                if (_binding != null) {
+                    if (servers.isEmpty()) {
+                        binding.emptyState.isVisible = true
+                    } else {
+                        binding.emptyState.isVisible = false
+                        adapter.updateData(servers)
+                    }
                 }
             }
         }
@@ -81,18 +88,6 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         findNavController().navigate(R.id.action_alistSettingsFragment_to_alistFolderBrowserFragment, bundle)
     }
 
-    private fun addFolder(serverId: Long, path: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val folder = AlistFolderEntity(serverId = serverId, remotePath = path, name = path.substringAfterLast('/'))
-            alistDao.insertFolder(folder)
-            // Trigger scan
-            alistRepo.scanFolder(serverId, path)
-            withContext(Dispatchers.Main) {
-                mainActivity.showToast("Scanning folder...")
-            }
-        }
-    }
-
     private fun showAddServerDialog() {
         val view = layoutInflater.inflate(R.layout.dialog_add_alist_server, null)
         val nameInput = view.findViewById<TextInputEditText>(R.id.serverName)
@@ -123,34 +118,14 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         }
     }
 
-    private fun showAddServerDialog() {
-        val view = layoutInflater.inflate(R.layout.dialog_add_alist_server, null)
-        val nameInput = view.findViewById<TextInputEditText>(R.id.serverName)
-        val urlInput = view.findViewById<TextInputEditText>(R.id.serverUrl)
-        val userInput = view.findViewById<TextInputEditText>(R.id.username)
-        val passInput = view.findViewById<TextInputEditText>(R.id.password)
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {}
 
-        AlertDialog.Builder(requireContext())
-            .setTitle("Add Alist Server")
-            .setView(view)
-            .setPositiveButton("Add") { _, _ ->
-                val server = AlistServerEntity(
-                    name = nameInput.text.toString(),
-                    url = urlInput.text.toString(),
-                    username = userInput.text.toString(),
-                    password = passInput.text.toString()
-                )
-                saveServer(server)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun saveServer(server: AlistServerEntity) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            alistDao.insertServer(server)
-            loadServers()
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        if (menuItem.itemId == android.R.id.home) {
+            findNavController().popBackStack()
+            return true
         }
+        return false
     }
 
     override fun onDestroyView() {

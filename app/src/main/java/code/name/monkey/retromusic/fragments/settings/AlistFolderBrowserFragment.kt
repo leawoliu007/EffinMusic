@@ -18,8 +18,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
 import org.koin.android.ext.android.inject
 import code.name.monkey.retromusic.repository.AlistSongRepository
+import code.name.monkey.retromusic.alist.model.AlistFsListRequest
+import code.name.monkey.retromusic.extensions.showToast
 
 class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_alist_folder_browser), BreadCrumbLayout.SelectionCallback {
     private var _binding: FragmentAlistFolderBrowserBinding? = null
@@ -79,11 +84,11 @@ class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_ali
             val db = RetroDatabase.getInstance(requireContext())
             val server = db.alistDao().getServerById(serverId)
             if (server != null) {
-                val service = AlistClient.getService(server.url)
+                val service = AlistClient.create(server.url)
                 try {
-                    val response = service.listFiles(code.name.monkey.retromusic.alist.model.AlistListRequest(path))
+                    val response = service.listFiles(AlistFsListRequest(path))
                     if (response.code == 200) {
-                        val folders = response.data.content.filter { it.isDir }
+                        val folders = response.data?.content?.filter { it.isDir } ?: emptyList()
                         withContext(Dispatchers.Main) {
                             adapter.updateData(folders, selectedPaths)
                             binding.progressBar.isVisible = false
@@ -92,7 +97,7 @@ class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_ali
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        mainActivity.showToast("Error loading Alist: ${e.message}")
+                        showToast("Error loading Alist: ${e.message}")
                         binding.progressBar.isVisible = false
                         updateFab()
                     }
@@ -135,6 +140,16 @@ class AlistFolderBrowserFragment : AbsMainActivityFragment(R.layout.fragment_ali
 
     override fun onCrumbSelection(crumb: BreadCrumbLayout.Crumb, index: Int) {
         loadPath(crumb.file.path)
+    }
+
+    override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {}
+
+    override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+        if (menuItem.itemId == android.R.id.home) {
+            findNavController().popBackStack()
+            return true
+        }
+        return false
     }
 
     override fun onDestroyView() {
