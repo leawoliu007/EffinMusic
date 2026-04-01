@@ -19,6 +19,7 @@ import code.name.monkey.retromusic.db.AlistFolderEntity
 import code.name.monkey.retromusic.db.AlistServerEntity
 import code.name.monkey.retromusic.db.RetroDatabase
 import code.name.monkey.retromusic.extensions.showToast
+import code.name.monkey.retromusic.fragments.ReloadType
 import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
 import code.name.monkey.retromusic.repository.AlistSongRepository
 import com.google.android.material.textfield.TextInputEditText
