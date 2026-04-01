@@ -33,7 +33,7 @@ interface LastAddedRepository {
 }
 
 class RealLastAddedRepository(
-    private val songRepository: RealSongRepository,
+    private val songRepository: MediaStoreSongRepository,
     private val albumRepository: RealAlbumRepository,
     private val artistRepository: RealArtistRepository
 ) : LastAddedRepository {

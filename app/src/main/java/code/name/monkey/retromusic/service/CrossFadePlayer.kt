@@ -43,6 +43,7 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
     var isCrossFading = false
 
     private var isActuallyPlaying = false
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         player1.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
@@ -72,6 +73,7 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
     override fun release() {
         stop()
         cancelFade()
+        scope.cancel()
         getCurrentPlayer()?.release()
         getNextPlayer()?.release()
         durationListener.cancel()
@@ -336,7 +338,7 @@ class CrossFadePlayer(context: Context) : LocalPlayback(context) {
                 if (nextSong != null && nextSong != Song.emptySong) {
                     nextDataSource = null
                     val alistRepo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
-                    launch {
+                    scope.launch {
                         val dataSource = if (nextSong.id < 0) {
                             alistRepo.resolvePlaybackUrl(nextSong) ?: nextSong.data
                         } else {

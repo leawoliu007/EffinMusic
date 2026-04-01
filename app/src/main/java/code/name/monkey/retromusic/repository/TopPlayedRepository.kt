@@ -45,7 +45,7 @@ interface TopPlayedRepository {
 
 class RealTopPlayedRepository(
     private val context: Context,
-    private val songRepository: RealSongRepository,
+    private val songRepository: MediaStoreSongRepository,
     private val albumRepository: RealAlbumRepository,
     private val artistRepository: RealArtistRepository
 ) : TopPlayedRepository {

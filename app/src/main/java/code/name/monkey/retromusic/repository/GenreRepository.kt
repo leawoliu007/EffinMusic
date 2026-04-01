@@ -39,7 +39,7 @@ interface GenreRepository {
 
 class RealGenreRepository(
     private val contentResolver: ContentResolver,
-    private val songRepository: RealSongRepository
+    private val songRepository: MediaStoreSongRepository
 ) : GenreRepository {
 
     override fun genres(query: String): List<Genre> {

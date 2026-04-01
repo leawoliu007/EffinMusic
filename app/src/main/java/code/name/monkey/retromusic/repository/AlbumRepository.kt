@@ -33,7 +33,7 @@ interface AlbumRepository {
     fun album(albumId: Long): Album
 }
 
-class RealAlbumRepository(private val songRepository: RealSongRepository) :
+class RealAlbumRepository(private val songRepository: MediaStoreSongRepository) :
     AlbumRepository {
 
     override fun albums(): List<Album> {

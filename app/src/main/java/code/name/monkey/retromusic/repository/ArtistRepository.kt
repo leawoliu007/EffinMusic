@@ -39,7 +39,7 @@ interface ArtistRepository {
 }
 
 class RealArtistRepository(
-    private val songRepository: RealSongRepository,
+    private val songRepository: MediaStoreSongRepository,
     private val albumRepository: RealAlbumRepository
 ) : ArtistRepository {
 
@@ -80,7 +80,7 @@ class RealArtistRepository(
                 .filter { song ->
                     val artistIds = song.artistIds
                         ?.split(",")
-                        ?.mapNotNull { it.trim().toLongOrNull() } 
+                        ?.mapNotNull { id -> id.trim().toLongOrNull() } 
                         ?: emptyList()
                     artistId in artistIds
                 }
@@ -90,7 +90,7 @@ class RealArtistRepository(
                 val songsForArtist = album.songs.filter { song ->
                     val artistIds = song.artistIds
                         ?.split(",")
-                        ?.mapNotNull { it.trim().toLongOrNull() } 
+                        ?.mapNotNull { id -> id.trim().toLongOrNull() } 
                         ?: emptyList()
                     artistId in artistIds
                 }
@@ -104,15 +104,15 @@ class RealArtistRepository(
 
         val ids = songs[0].artistIds
             ?.split(",")
-            ?.map { it.trim() } 
-            ?.filter { it.isNotEmpty() }
+            ?.map { idStr -> idStr.trim() } 
+            ?.filter { idStr -> idStr.isNotEmpty() }
             ?: emptyList()
         val index = ids.indexOf(artistId.toString())
 
         val names = songs[0].artistNames
             ?.split(",")
-            ?.map { it.trim() } 
-            ?.filter { it.isNotEmpty() }
+            ?.map { name -> name.trim() } 
+            ?.filter { name -> name.isNotEmpty() }
             ?: emptyList()
         val name = if (index != -1 && index < names.size) names[index] else null
         
