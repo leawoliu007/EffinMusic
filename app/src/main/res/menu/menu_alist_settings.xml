@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/action_scan"
-        android:icon="@drawable/ic_sync"
+        android:icon="@drawable/ic_refresh"
         android:title="Rescan Folders"
         app:showAsAction="ifRoom" />
 </menu>
