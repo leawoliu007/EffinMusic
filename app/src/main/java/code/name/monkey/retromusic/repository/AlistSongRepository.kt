@@ -223,8 +223,10 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             artistIds = null,
             artistNames = null,
             sign = file.sign,
+            bitrate = 0,
             size = file.size,
-            format = file.name.substringAfterLast('.', "").uppercase()
+            format = file.name.substringAfterLast('.', "").uppercase(),
+            sampleRate = 0
         )
     }
 

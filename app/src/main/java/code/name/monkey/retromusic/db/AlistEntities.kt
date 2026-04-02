@@ -39,6 +39,7 @@ data class AlistSongEntity(
     val artistIds: String?,
     val artistNames: String?,
     val rawUrl: String? = null,
+    val sign: String? = null,
     val expires: Long = 0,
     val bitrate: Int = 0,
     val size: Long = 0,
