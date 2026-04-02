@@ -76,6 +76,6 @@ interface PlaylistDao {
     @Update
     suspend fun updatePlaylists(playlists: List<PlaylistEntity>)
 
-    @Query("UPDATE SongEntity SET title = :title, artist_name = :artist, album_name = :album, duration = :duration, year = :year, track_number = :trackNumber, bitrate = :bitrate, size = :size, format = :format, sampleRate = :sampleRate WHERE id = :songId")
-    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int, bitrate: Int, size: Long, format: String?, sampleRate: Int)
+    @Query("UPDATE SongEntity SET title = :title, artist_name = :artist, album_name = :album, duration = :duration, year = :year, track_number = :trackNumber, bitrate = :bitrate, size = :size, format = :format, sampleRate = :sampleRate, artist_id = :artistId, artistNames = :artistNames, artistIds = :artistIds WHERE id = :songId")
+    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int, bitrate: Int, size: Long, format: String?, sampleRate: Int, artistId: Long, artistNames: String?, artistIds: String?)
 }

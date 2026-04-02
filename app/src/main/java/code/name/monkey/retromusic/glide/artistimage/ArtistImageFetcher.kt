@@ -53,7 +53,8 @@ class ArtistImageFetcher(
                         response: Response<DeezerResponse>
                     ) {
                         if (!response.isSuccessful) {
-                            throw IOException("Request failed with code: " + response.code())
+                            callback.onDataReady(getFallbackAlbumImage())
+                            return
                         }
 
                         if (isCancelled) {

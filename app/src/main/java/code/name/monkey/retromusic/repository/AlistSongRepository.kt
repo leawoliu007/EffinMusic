@@ -205,6 +205,8 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         val idValue = (server.url + remotePath).hashCode().toLong()
         val negativeId = -Math.abs(idValue)
         
+        val generatedArtistId = artist.hashCode().toLong()
+
         return AlistSongEntity(
             id = negativeId,
             serverId = server.id,
@@ -216,12 +218,12 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             dateModified = System.currentTimeMillis() / 1000,
             albumId = -1,
             albumName = album,
-            artistId = -1,
+            artistId = generatedArtistId,
             artistName = artist,
             composer = null,
             albumArtist = null,
-            artistIds = null,
-            artistNames = null,
+            artistIds = generatedArtistId.toString(),
+            artistNames = artist,
             sign = file.sign,
             bitrate = 0,
             size = file.size,
@@ -263,12 +265,14 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                     val finalAlbum = if (albumStr.isNullOrEmpty()) existingSong.albumName else albumStr
                     val finalYear = if (yearStr.isNullOrEmpty()) existingSong.year else yearStr
                     
-                    Log.d(TAG, "Updating metadata for $songId: $finalTitle, Duration: $durationValue, Bitrate: $bitrateValue, SR: $sampleRateValue")
+                    val generatedArtistId = finalArtist.hashCode().toLong()
+
+                    Log.d(TAG, "Updating metadata for $songId: $finalTitle, Artist: $finalArtist, Duration: $durationValue")
                     
                     // Update main Alist storage
-                    alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue)
+                    alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString())
                     // Update all playlists containing this song
-                    playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue)
+                    playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString())
                 }
                 Unit
             } catch (e: Exception) {

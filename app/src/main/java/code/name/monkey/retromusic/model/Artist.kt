@@ -29,7 +29,7 @@ data class Artist(
         artistName: String,
         albums: List<Album>,
         isAlbumArtist: Boolean = false
-    ) : this(albums[0].artistId, albums, isAlbumArtist) {
+    ) : this(albums.firstOrNull()?.artistId ?: -1L, albums, isAlbumArtist) {
         _name = artistName
     }
 
@@ -52,7 +52,7 @@ data class Artist(
                 MusicUtil.isArtistNameUnknown(resolvedName) ->
                     UNKNOWN_ARTIST_DISPLAY_NAME
 
-                else -> resolvedName!!
+                else -> resolvedName ?: UNKNOWN_ARTIST_DISPLAY_NAME
             }
         }
 
@@ -100,7 +100,6 @@ data class Artist(
                             // Fallback to integer‑year sort
                             val year1 = o1.year?.toIntOrNull() ?: 0
                             val year2 = o2.year?.toIntOrNull() ?: 0
-                            val yearComparison = year2.compareTo(year1)
                             val diff = year2.compareTo(year1)
                             if (diff == 0) o1.trackNumber.compareTo(o2.trackNumber) else diff
                         }
@@ -177,6 +176,6 @@ data class Artist(
         const val UNKNOWN_ARTIST_DISPLAY_NAME = "Unknown Artist"
         const val VARIOUS_ARTISTS_DISPLAY_NAME = "Various Artists"
         const val VARIOUS_ARTISTS_ID: Long = -2
-        val empty = Artist(-1, emptyList(), false, UNKNOWN_ARTIST_DISPLAY_NAME) // Update empty to use new constructor
+        val empty = Artist(-1, emptyList(), false, UNKNOWN_ARTIST_DISPLAY_NAME)
     }
 }
