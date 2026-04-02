@@ -281,7 +281,7 @@ class MultiPlayer(context: Context) : LocalPlayback(context) {
         scope.launch {
             val dataSource = if (song.id < 0) {
                 val url = alistRepo.resolvePlaybackUrl(song) ?: song.data
-                if (song.duration == 0L) {
+                if (song.duration <= 0L) {
                     scope.launch { alistRepo.fetchAndStoreMetadata(song.id, url) }
                 }
                 url

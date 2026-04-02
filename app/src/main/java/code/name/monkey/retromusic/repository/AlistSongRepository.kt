@@ -234,9 +234,14 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                 val trackNumberValue = trackNumberStr?.substringBefore('/')?.toIntOrNull() ?: 0
 
                 if (!title.isNullOrEmpty()) {
-                    Log.d(TAG, "Fetched metadata for Alist song $songId: $title - $artistStr")
-                    alistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
-                    playlistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
+                    Log.d(TAG, "Successfully fetched remote metadata for Alist song $songId: $title")
+                    val finalArtist = if (artistStr.isNullOrEmpty() || artistStr == "Unknown") "Unknown Artist" else artistStr
+                    val finalAlbum = if (albumStr.isNullOrEmpty() || albumStr == "Unknown") "Unknown Album" else albumStr
+                    
+                    // Update main Alist storage
+                    alistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue)
+                    // Update all playlists containing this song
+                    playlistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue)
                 }
                 Unit
             } catch (e: Exception) {
