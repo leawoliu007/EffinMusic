@@ -60,6 +60,15 @@ object RetroGlideExtension {
     }
 
     private fun getSongModel(song: Song, ignoreMediaStore: Boolean): Any {
+        if (!song.coverPath.isNullOrEmpty()) {
+            return AudioFileCover(song.coverPath!!)
+        }
+        
+        // AList 专供：如果没有本地图，则改用歌手写真作为封面
+        if (song.id < 0) {
+            return ArtistImage(Artist(song.artistId, emptyList(), false, song.artistName))
+        }
+
         return if (ignoreMediaStore) {
             AudioFileCover(song.data)
         } else {

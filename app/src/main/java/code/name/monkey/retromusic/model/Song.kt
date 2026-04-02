@@ -1,22 +1,23 @@
 /*
- * Copyright (c) 2019 Hemanth Savarala.
+ * Copyright (c) 2020 Hemanth Savarla.
  *
  * Licensed under the GNU General Public License v3
  *
- * This is free software: you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by
- *  the Free Software Foundation either version 3 of the License, or (at your option) any later version.
+ * This is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  *
  * This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
+ *
  */
+
 package code.name.monkey.retromusic.model
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
-// update equals and hashcode if fields changes
 @Parcelize
 open class Song(
     open val id: Long,
@@ -37,45 +38,13 @@ open class Song(
     open val bitrate: Int = 0,
     open val size: Long = 0,
     open val format: String? = null,
-    open val sampleRate: Int = 0
+    open val sampleRate: Int = 0,
+    open val coverPath: String? = null
 ) : Parcelable {
 
-    // Manual copy function
-    fun copy(
-        id: Long = this.id,
-        title: String = this.title,
-        trackNumber: Int = this.trackNumber,
-        year: String? = this.year,
-        duration: Long = this.duration,
-        data: String = this.data,
-        dateModified: Long = this.dateModified,
-        albumId: Long = this.albumId,
-        albumName: String = this.albumName,
-        artistId: Long = this.artistId,
-        artistName: String = this.artistName,
-        composer: String? = this.composer,
-        albumArtist: String? = this.albumArtist,
-        artistIds: String? = this.artistIds,
-        artistNames: String? = this.artistNames,
-        bitrate: Int = this.bitrate,
-        size: Long = this.size,
-        format: String? = this.format,
-        sampleRate: Int = this.sampleRate
-    ): Song {
-        return Song(
-            id, title, trackNumber, year, duration, data, dateModified,
-            albumId, albumName, artistId, artistName, composer, albumArtist,
-            artistIds, artistNames, bitrate, size, format, sampleRate
-        )
-    }
-
-
-    // need to override manually because is open and cannot be a data class
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Song
+        if (other !is Song) return false
 
         if (id != other.id) return false
         if (title != other.title) return false
@@ -96,6 +65,7 @@ open class Song(
         if (size != other.size) return false
         if (format != other.format) return false
         if (sampleRate != other.sampleRate) return false
+        if (coverPath != other.coverPath) return false
 
         return true
     }
@@ -120,33 +90,41 @@ open class Song(
         result = 31 * result + size.hashCode()
         result = 31 * result + (format?.hashCode() ?: 0)
         result = 31 * result + sampleRate
+        result = 31 * result + (coverPath?.hashCode() ?: 0)
         return result
     }
 
+    fun copy(
+        id: Long = this.id,
+        title: String = this.title,
+        trackNumber: Int = this.trackNumber,
+        year: String? = this.year,
+        duration: Long = this.duration,
+        data: String = this.data,
+        dateModified: Long = this.dateModified,
+        albumId: Long = this.albumId,
+        albumName: String = this.albumName,
+        artistId: Long = this.artistId,
+        artistName: String = this.artistName,
+        composer: String? = this.composer,
+        albumArtist: String? = this.albumArtist,
+        artistIds: String? = this.artistIds,
+        artistNames: String? = this.artistNames,
+        bitrate: Int = this.bitrate,
+        size: Long = this.size,
+        format: String? = this.format,
+        sampleRate: Int = this.sampleRate,
+        coverPath: String? = this.coverPath
+    ): Song {
+        return Song(
+            id, title, trackNumber, year, duration, data, dateModified, albumId, albumName, artistId,
+            artistName, composer, albumArtist, artistIds, artistNames, bitrate, size, format, sampleRate, coverPath
+        )
+    }
 
     companion object {
-
-        @JvmStatic
         val emptySong = Song(
-            id = -1,
-            title = "",
-            trackNumber = -1,
-            year = null,
-            duration = -1,
-            data = "",
-            dateModified = -1,
-            albumId = -1,
-            albumName = "",
-            artistId = -1,
-            artistName = "",
-            composer = "",
-            albumArtist = "",
-            artistIds = "",
-            artistNames = "",
-            bitrate = 0,
-            size = 0,
-            format = null,
-            sampleRate = 0
+            -1L, "", -1, "", -1L, "", -1L, -1L, "", -1L, "", "", "", "", "", 0, 0L, null, 0, null
         )
     }
 }

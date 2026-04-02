@@ -54,5 +54,6 @@ class SongEntity(
     val bitrate: Int = 0,
     val size: Long = 0,
     val format: String? = null,
-    val sampleRate: Int = 0
+    val sampleRate: Int = 0,
+    val coverPath: String? = null
 ) : Parcelable

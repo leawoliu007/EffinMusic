@@ -17,14 +17,27 @@ import android.media.MediaMetadataRetriever
 import com.bumptech.glide.Priority
 import com.bumptech.glide.load.DataSource
 import com.bumptech.glide.load.data.DataFetcher
-import java.io.ByteArrayInputStream
-import java.io.FileNotFoundException
-import java.io.IOException
-import java.io.InputStream
+import java.io.*
 
 class AudioFileCoverFetcher(private val model: AudioFileCover) : DataFetcher<InputStream> {
     private var stream: InputStream? = null
     override fun loadData(priority: Priority, callback: DataFetcher.DataCallback<in InputStream>) {
+        
+        // 1. Check if the path is already a direct image file (Alist Cache)
+        if (model.filePath.endsWith(".jpg", true) || model.filePath.endsWith(".png", true)) {
+            try {
+                val file = File(model.filePath)
+                if (file.exists()) {
+                    stream = FileInputStream(file)
+                    callback.onDataReady(stream)
+                    return
+                }
+            } catch (e: Exception) {
+                // Fallback to retriever
+            }
+        }
+
+        // 2. Original MediaMetadataRetriever logic for local files
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(model.filePath)
@@ -35,26 +48,25 @@ class AudioFileCoverFetcher(private val model: AudioFileCover) : DataFetcher<Inp
                 AudioFileCoverUtils.fallback(model.filePath)
             }
             callback.onDataReady(stream)
-        } catch (e: FileNotFoundException) {
+        } catch (e: Exception) {
             callback.onLoadFailed(e)
         } finally {
-            retriever.release()
+            try {
+                retriever.release()
+            } catch (e: Exception) {}
         }
     }
 
     override fun cleanup() {
-        // already cleaned up in loadData and ByteArrayInputStream will be GC'd
         if (stream != null) {
             try {
                 stream?.close()
             } catch (ignore: IOException) {
-                // can't do much about it
             }
         }
     }
 
     override fun cancel() {
-        // cannot cancel
     }
 
     override fun getDataClass(): Class<InputStream> {
