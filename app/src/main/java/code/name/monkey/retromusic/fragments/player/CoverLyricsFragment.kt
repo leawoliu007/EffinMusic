@@ -105,7 +105,7 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
         lifecycleScope.launch(Dispatchers.IO) {
             val syncLyrics: String? = try {
                 if (song.id < 0) {
-                    val repo: AlistSongRepository = get()
+                    val repo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
                     val url = repo.resolvePlaybackUrl(song)
                     if (url != null) LyricUtil.getLyricsFromUrl(url) else null
                 } else {

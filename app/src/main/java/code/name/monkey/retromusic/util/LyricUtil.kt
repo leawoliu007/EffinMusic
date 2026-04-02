@@ -180,10 +180,9 @@ object LyricUtil {
         return try {
             val headers = mapOf("User-Agent" to "Mozilla/5.0")
             retriever.setDataSource(url, headers)
-            // METADATA_KEY_LYRICS is 34 on older android? No, it's 34 as Integer key.
-            // Actually andrutil.media.MediaMetadataRetriever.METADATA_KEY_LYRICS is API 28+
+            // METADATA_KEY_LYRICS is constant value 34, available since API 28
             if (android.os.Build.VERSION.SDK_INT >= 28) {
-                retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_LYRICS)
+                retriever.extractMetadata(34)
             } else {
                 null
             }

@@ -354,7 +354,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
 
     private suspend fun fetchRemoteLyrics(): String? = withContext(Dispatchers.IO) {
         if (song.id < 0) {
-            val alistRepo: AlistSongRepository = get()
+            val alistRepo: AlistSongRepository = org.koin.java.KoinJavaComponent.get(AlistSongRepository::class.java)
             val url = alistRepo.resolvePlaybackUrl(song)
             if (url != null) {
                 LyricUtil.getLyricsFromUrl(url)
