@@ -128,6 +128,13 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         }
     }
 
+    suspend fun deleteSong(songId: Long) {
+        withContext(Dispatchers.IO) {
+            alistDao.deleteSongById(songId)
+            playlistDao.deleteSongById(songId)
+        }
+    }
+
     private fun isAudioFile(fileName: String): Boolean {
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         return AUDIO_EXTENSIONS.contains(extension)

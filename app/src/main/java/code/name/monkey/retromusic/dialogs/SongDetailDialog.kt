@@ -113,7 +113,7 @@ class SongDetailDialog : DialogFragment() {
             } else if (song.id < 0) {
                 // Alist Song metadata display
                 binding.fileName.text =
-                    makeTextWithTitle(context, R.string.label_file_name, if (song.title.contains('.')) song.title else "${song.title}.${song.format.lowercase()}")
+                    makeTextWithTitle(context, R.string.label_file_name, if (song.title.contains('.')) song.title else "${song.title}.${song.format?.lowercase() ?: ""}")
                 binding.filePath.text =
                     makeTextWithTitle(context, R.string.label_file_path, "Alist: ${song.data}")
                 binding.fileSize.text =

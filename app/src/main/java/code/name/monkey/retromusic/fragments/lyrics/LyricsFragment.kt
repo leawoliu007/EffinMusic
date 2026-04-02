@@ -21,11 +21,13 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.text.InputType
 import android.view.*
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.transition.Fade
 import code.name.monkey.appthemehelper.common.ATHToolbarActivity
@@ -35,35 +37,31 @@ import code.name.monkey.retromusic.R
 import code.name.monkey.retromusic.activities.tageditor.TagWriter
 import code.name.monkey.retromusic.databinding.FragmentLyricsBinding
 import code.name.monkey.retromusic.extensions.accentColor
-import code.name.monkey.retromusic.extensions.currentFragment
+import code.name.monkey.retromusic.extensions.keepScreenOn
 import code.name.monkey.retromusic.extensions.materialDialog
 import code.name.monkey.retromusic.extensions.openUrl
 import code.name.monkey.retromusic.extensions.uri
 import code.name.monkey.retromusic.fragments.base.AbsMainActivityFragment
 import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
-import code.name.monkey.retromusic.lyrics.LyricsLoader
 import code.name.monkey.retromusic.lyrics.LrcView
+import code.name.monkey.retromusic.lyrics.LyricsLoader
 import code.name.monkey.retromusic.model.AudioTagInfo
 import code.name.monkey.retromusic.model.Song
-import code.name.monkey.retromusic.util.FileUtils
-import code.name.monkey.retromusic.util.LyricUtil
-import code.name.monkey.retromusic.util.UriUtil
+import code.name.monkey.retromusic.model.lyrics.AbsSynchronizedLyrics
+import code.name.monkey.retromusic.repository.AlistSongRepository
+import code.name.monkey.retromusic.util.*
 import com.afollestad.materialdialogs.input.input
-import code.name.monkey.retromusic.util.PreferenceUtil
-import androidx.appcompat.app.AppCompatActivity
-import code.name.monkey.retromusic.extensions.keepScreenOn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
+import org.koin.core.component.get
 import java.io.File
 import java.io.FileOutputStream
 import java.util.*
-import kotlin.collections.set
-import androidx.lifecycle.lifecycleScope
-import android.widget.Toast
-import kotlinx.coroutines.launch
 
 class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     MusicProgressViewUpdateHelper.Callback {
@@ -133,7 +131,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         requireActivity().onBackPressedDispatcher.addCallback(
             viewLifecycleOwner,
             object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed()  {
+                override fun handleOnBackPressed() {
                     backOrSwipe = true
                     isEnabled = false
                     requireActivity().onBackPressed()
@@ -162,6 +160,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     private fun setupViews() {
         binding.editButton.accentColor()
         binding.editButton.setOnClickListener {
+            // Edit not supported for AList
+            if (song.id < 0) {
+                Toast.makeText(requireContext(), "Alist songs cannot be edited", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             when (lyricsType) {
                 LyricsType.SYNCED_LYRICS -> {
                     editSyncedLyrics()
@@ -216,7 +219,11 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                         if (!fetchedLyrics.isNullOrBlank()) {
                             loadLyrics(fetchedLyrics)
                         } else {
-                            Toast.makeText(requireContext(), R.string.no_lyrics_found, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                requireContext(),
+                                R.string.no_lyrics_found,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     }
                     true
@@ -283,7 +290,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                 }
             }
             positiveButton(res = R.string.save) {
-                loadNormalLyrics()
+                loadLyrics()
             }
             negativeButton(res = android.R.string.cancel)
         }
@@ -339,46 +346,82 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
                 }
             }
             positiveButton(res = R.string.save) {
-                loadLRCLyrics()
+                loadLyrics()
             }
             negativeButton(res = android.R.string.cancel)
         }
     }
 
-    private fun loadNormalLyrics(lyrics: String? = null) {
+    private suspend fun fetchRemoteLyrics(): String? = withContext(Dispatchers.IO) {
+        if (song.id < 0) {
+            val alistRepo: AlistSongRepository = get()
+            val url = alistRepo.resolvePlaybackUrl(song)
+            if (url != null) {
+                LyricUtil.getLyricsFromUrl(url)
+            } else null
+        } else null
+    }
+
+    private suspend fun loadNormalLyrics(lyrics: String? = null) {
         val finalLyrics = if (!lyrics.isNullOrBlank()) {
             lyrics
-        } else { 
-            val file = File(song.data)
-            try {
-                AudioFileIO.read(file).tagOrCreateDefault.getFirst(FieldKey.LYRICS)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                ""
+        } else {
+            if (song.id < 0) {
+                fetchRemoteLyrics()
+            } else {
+                val file = File(song.data)
+                try {
+                    AudioFileIO.read(file).tagOrCreateDefault.getFirst(FieldKey.LYRICS)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    ""
+                }
             }
         }
-        binding.normalLyrics.isVisible = !finalLyrics.isNullOrEmpty()
-        binding.noLyricsFound.isVisible = finalLyrics.isNullOrEmpty()
-        binding.normalLyrics.text = finalLyrics
+        withContext(Dispatchers.Main) {
+            binding.normalLyrics.isVisible = !finalLyrics.isNullOrEmpty()
+            binding.noLyricsFound.isVisible = finalLyrics.isNullOrEmpty()
+            binding.normalLyrics.text = finalLyrics
+        }
     }
 
     /**
      * @return success
      */
-    private fun loadLRCLyrics(lyrics: String? = null): Boolean {
+    private suspend fun loadLRCLyrics(lyrics: String? = null): Boolean {
         if (lyrics != null) {
-            binding.lyricsView.loadLrc(lyrics)
+            withContext(Dispatchers.Main) {
+                binding.lyricsView.loadLrc(lyrics)
+            }
             return true
         }
+        
+        if (song.id < 0) {
+            val remoteLyrics = fetchRemoteLyrics()
+            if (remoteLyrics != null && AbsSynchronizedLyrics.isSynchronized(remoteLyrics)) {
+                withContext(Dispatchers.Main) {
+                    binding.lyricsView.loadLrc(remoteLyrics)
+                }
+                return true
+            }
+            return false
+        }
+
         val lrcFile = LyricUtil.getSyncedLyricsFile(song)
         if (lrcFile != null) {
-            binding.lyricsView.loadLrc(lrcFile)
+            withContext(Dispatchers.Main) {
+                binding.lyricsView.loadLrc(lrcFile)
+            }
         } else {
             val embeddedLyrics = LyricUtil.getEmbeddedSyncedLyrics(song.data)
             if (embeddedLyrics != null) {
-                binding.lyricsView.loadLrc(embeddedLyrics)
+                withContext(Dispatchers.Main) {
+                    binding.lyricsView.loadLrc(embeddedLyrics)
+                }
             } else {
-                binding.lyricsView.setLabel(getString(R.string.empty))
+                withContext(Dispatchers.Main) {
+                    binding.lyricsView.setLabel(getString(R.string.empty))
+                }
                 return false
             }
         }
@@ -386,15 +429,17 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
     }
 
     private fun loadLyrics(lyrics: String? = null) {
-        lyricsType = if (!loadLRCLyrics(lyrics)) {
-            binding.lyricsView.isVisible = false
-            loadNormalLyrics(lyrics)
-            LyricsType.NORMAL_LYRICS
-        } else {
-            binding.normalLyrics.isVisible = false
-            binding.noLyricsFound.isVisible = false
-            binding.lyricsView.isVisible = true
-            LyricsType.SYNCED_LYRICS
+        lifecycleScope.launch {
+            if (loadLRCLyrics(lyrics)) {
+                binding.normalLyrics.isVisible = false
+                binding.noLyricsFound.isVisible = false
+                binding.lyricsView.isVisible = true
+                lyricsType = LyricsType.SYNCED_LYRICS
+            } else {
+                binding.lyricsView.isVisible = false
+                loadNormalLyrics(lyrics)
+                lyricsType = LyricsType.NORMAL_LYRICS
+            }
         }
     }
 
@@ -431,7 +476,7 @@ class LyricsFragment : AbsMainActivityFragment(R.layout.fragment_lyrics),
         _binding = null
     }
 
-    
+
     enum class LyricsType {
         NORMAL_LYRICS,
         SYNCED_LYRICS

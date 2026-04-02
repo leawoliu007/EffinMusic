@@ -15,8 +15,10 @@
 package code.name.monkey.retromusic.helper.menu
 
 import android.content.Intent
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.os.bundleOf
 import androidx.fragment.app.FragmentActivity
@@ -35,6 +37,7 @@ import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.interfaces.IPaletteColorHolder
 import code.name.monkey.retromusic.model.Song
 import code.name.monkey.retromusic.providers.BlacklistStore
+import code.name.monkey.retromusic.repository.AlistSongRepository
 import code.name.monkey.retromusic.repository.RealRepository
 import code.name.monkey.retromusic.util.MusicUtil
 import code.name.monkey.retromusic.util.RingtoneManager
@@ -51,10 +54,18 @@ object SongMenuHelper : KoinComponent {
     val MENU_RES
         get() = R.menu.menu_item_song
 
+    private val alistRepo: AlistSongRepository by lazy { get() }
+
     fun handleMenuClick(activity: FragmentActivity, song: Song, menuItemId: Int): Boolean {
         val libraryViewModel = activity.getViewModel() as LibraryViewModel
+        val isAlist = song.id < 0
+
         when (menuItemId) {
             R.id.action_set_as_ringtone -> {
+                if (isAlist) {
+                    Toast.makeText(activity, "Alist songs cannot be set as ringtone", Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 if (RingtoneManager.requiresDialog(activity)) {
                     RingtoneManager.showDialog(activity)
                 } else {
@@ -63,16 +74,41 @@ object SongMenuHelper : KoinComponent {
                 return true
             }
             R.id.action_share -> {
-                activity.startActivity(
-                    Intent.createChooser(
-                        MusicUtil.createShareSongFileIntent(activity, song),
-                        null
+                if (isAlist) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        val url = alistRepo.resolvePlaybackUrl(song)
+                        if (url != null) {
+                            val shareIntent = Intent(Intent.ACTION_SEND)
+                            shareIntent.type = "text/plain"
+                            shareIntent.putExtra(Intent.EXTRA_SUBJECT, song.title)
+                            shareIntent.putExtra(Intent.EXTRA_TEXT, "Listen to this song: ${song.title} - ${song.artistName}\n$url")
+                            activity.startActivity(Intent.createChooser(shareIntent, null))
+                        } else {
+                            Toast.makeText(activity, "Failed to resolve AList URL", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    activity.startActivity(
+                        Intent.createChooser(
+                            MusicUtil.createShareSongFileIntent(activity, song),
+                            null
+                        )
                     )
-                )
+                }
                 return true
             }
             R.id.action_delete_from_device -> {
-                DeleteSongsDialog.create(song).show(activity.supportFragmentManager, "DELETE_SONGS")
+                if (isAlist) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        alistRepo.deleteSong(song.id)
+                        withContext(Dispatchers.Main) {
+                            libraryViewModel.forceReload(ReloadType.Songs)
+                            Toast.makeText(activity, "Removed from AList cache", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    DeleteSongsDialog.create(song).show(activity.supportFragmentManager, "DELETE_SONGS")
+                }
                 return true
             }
             R.id.action_add_to_playlist -> {
@@ -94,6 +130,10 @@ object SongMenuHelper : KoinComponent {
                 return true
             }
             R.id.action_tag_editor -> {
+                if (isAlist) {
+                    Toast.makeText(activity, "Alist songs cannot be edited", Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 val tagEditorIntent = Intent(activity, SongTagEditorActivity::class.java)
                 tagEditorIntent.putExtra(AbsTagEditorActivity.EXTRA_ID, song.id)
                 if (activity is IPaletteColorHolder)
@@ -109,6 +149,10 @@ object SongMenuHelper : KoinComponent {
                 return true
             }
             R.id.action_go_to_album -> {
+                if (isAlist) {
+                    Toast.makeText(activity, "Album navigation not supported for AList", Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 activity.findNavController(R.id.fragment_container).navigate(
                     R.id.albumDetailsFragment,
                     bundleOf(EXTRA_ALBUM_ID to song.albumId)
@@ -116,6 +160,10 @@ object SongMenuHelper : KoinComponent {
                 return true
             }
             R.id.action_go_to_artist -> {
+                if (isAlist) {
+                    Toast.makeText(activity, "Artist navigation not supported for AList", Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 activity.findNavController(R.id.fragment_container).navigate(
                     R.id.artistDetailsFragment,
                     bundleOf(EXTRA_ARTIST_ID to song.artistId)
@@ -123,6 +171,10 @@ object SongMenuHelper : KoinComponent {
                 return true
             }
             R.id.action_add_to_blacklist -> {
+                if (isAlist) {
+                    Toast.makeText(activity, "Blacklist not supported for AList", Toast.LENGTH_SHORT).show()
+                    return true
+                }
                 BlacklistStore.getInstance(activity).addPath(File(song.data))
                 libraryViewModel.forceReload(ReloadType.Songs)
                 return true
@@ -142,6 +194,20 @@ object SongMenuHelper : KoinComponent {
         override fun onClick(v: View) {
             val popupMenu = PopupMenu(activity, v)
             popupMenu.inflate(menuRes)
+            
+            // Intelligent Shielding: Hide non-functional items for AList songs
+            if (song.id < 0) {
+                val menu = popupMenu.menu
+                menu.findItem(R.id.action_tag_editor)?.isVisible = false
+                menu.findItem(R.id.action_set_as_ringtone)?.isVisible = false
+                menu.findItem(R.id.action_add_to_blacklist)?.isVisible = false
+                menu.findItem(R.id.action_go_to_album)?.isVisible = false
+                menu.findItem(R.id.action_go_to_artist)?.isVisible = false
+                
+                // Rename "Delete from device" to "Remove from Alist"
+                menu.findItem(R.id.action_delete_from_device)?.setTitle("Remove from AList")
+            }
+            
             popupMenu.setOnMenuItemClickListener(this)
             popupMenu.show()
         }

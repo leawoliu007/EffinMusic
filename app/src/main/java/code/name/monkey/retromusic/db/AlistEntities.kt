@@ -91,4 +91,7 @@ interface AlistDao {
 
     @Query("UPDATE alist_song SET title = :title, artistName = :artist, albumName = :album, duration = :duration, year = :year, trackNumber = :trackNumber, bitrate = :bitrate, size = :size, format = :format, sampleRate = :sampleRate, artistId = :artistId, artistNames = :artistNames, artistIds = :artistIds, coverPath = :coverPath WHERE id = :songId")
     suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int, bitrate: Int, size: Long, format: String?, sampleRate: Int, artistId: Long, artistNames: String?, artistIds: String?, coverPath: String?)
+
+    @Query("DELETE FROM alist_song WHERE id = :songId")
+    suspend fun deleteSongById(songId: Long)
 }

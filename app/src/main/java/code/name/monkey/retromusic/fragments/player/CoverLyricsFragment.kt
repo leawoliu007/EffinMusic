@@ -20,12 +20,15 @@ import code.name.monkey.retromusic.helper.MusicPlayerRemote
 import code.name.monkey.retromusic.helper.MusicProgressViewUpdateHelper
 import code.name.monkey.retromusic.model.lyrics.AbsSynchronizedLyrics
 import code.name.monkey.retromusic.model.lyrics.Lyrics
+import code.name.monkey.retromusic.repository.AlistSongRepository
 import code.name.monkey.retromusic.util.LyricUtil
 import code.name.monkey.retromusic.util.PreferenceUtil
 import code.name.monkey.retromusic.util.color.MediaNotificationProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.exceptions.CannotReadException
+import org.koin.core.component.get
 import java.io.File
 import java.io.FileNotFoundException
 
@@ -98,21 +101,31 @@ class CoverLyricsFragment : AbsMusicServiceFragment(R.layout.fragment_cover_lyri
 
     private fun updateLyrics() {
         lyrics = null
+        val song = MusicPlayerRemote.currentSong
         lifecycleScope.launch(Dispatchers.IO) {
-            val song = MusicPlayerRemote.currentSong
-            lyrics = try {
-                val lrcFile: File? = LyricUtil.getSyncedLyricsFile(song)
-                val data: String = LyricUtil.getStringFromLrc(lrcFile)
-                Lyrics.parse(song,
+            val syncLyrics: String? = try {
+                if (song.id < 0) {
+                    val repo: AlistSongRepository = get()
+                    val url = repo.resolvePlaybackUrl(song)
+                    if (url != null) LyricUtil.getLyricsFromUrl(url) else null
+                } else {
+                    val lrcFile: File? = LyricUtil.getSyncedLyricsFile(song)
+                    val data: String = LyricUtil.getStringFromLrc(lrcFile)
                     data.ifEmpty {
                         // Get Embedded Lyrics
                         LyricUtil.getEmbeddedSyncedLyrics(song.data)
                     }
-                )
+                }
             } catch (err: FileNotFoundException) {
                 null
             } catch (e: CannotReadException) {
                 null
+            } catch (e: Exception) {
+                null
+            }
+
+            withContext(Dispatchers.Main) {
+                lyrics = Lyrics.parse(song, syncLyrics ?: "")
             }
         }
     }

@@ -27,6 +27,7 @@ object LyricUtil {
     private val lrcRootPath =
         getExternalStorageDirectory().toString() + "/RetroMusic/lyrics/"
     private const val TAG = "LyricUtil"
+
     fun writeLrcToLoc(
         title: String, artist: String, lrcContext: String
     ): File? {
@@ -150,9 +151,11 @@ object LyricUtil {
             isLrcOriginalFileExist(song.data) -> {
                 getLocalLyricOriginalFile(song.data)
             }
+
             isLrcFileExist(song.title, song.artistName) -> {
                 getLocalLyricFile(song.title, song.artistName)
             }
+
             else -> {
                 null
             }
@@ -169,6 +172,29 @@ object LyricUtil {
             embeddedLyrics
         } else {
             null
+        }
+    }
+
+    fun getLyricsFromUrl(url: String): String? {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            val headers = mapOf("User-Agent" to "Mozilla/5.0")
+            retriever.setDataSource(url, headers)
+            // METADATA_KEY_LYRICS is 34 on older android? No, it's 34 as Integer key.
+            // Actually andrutil.media.MediaMetadataRetriever.METADATA_KEY_LYRICS is API 28+
+            if (android.os.Build.VERSION.SDK_INT >= 28) {
+                retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_LYRICS)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract lyrics from URL: ${e.message}")
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {
+            }
         }
     }
 }
