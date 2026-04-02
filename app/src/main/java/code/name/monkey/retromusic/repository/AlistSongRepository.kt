@@ -220,29 +220,30 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
     suspend fun fetchAndStoreMetadata(songId: Long, rawUrl: String) {
         withContext(Dispatchers.IO) {
-        val retriever = android.media.MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(rawUrl, HashMap())
-            val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
-            val artistStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
-            val albumStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
-            val durationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
-            val yearStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_YEAR)
-            val trackNumberStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
+            val retriever = android.media.MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(rawUrl, HashMap())
+                val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+                val artistStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                val albumStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                val durationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                val yearStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_YEAR)
+                val trackNumberStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
 
-            val durationValue = durationStr?.toLongOrNull() ?: 0L
-            val trackNumberValue = trackNumberStr?.substringBefore('/')?.toIntOrNull() ?: 0
+                val durationValue = durationStr?.toLongOrNull() ?: 0L
+                val trackNumberValue = trackNumberStr?.substringBefore('/')?.toIntOrNull() ?: 0
 
-            if (!title.isNullOrEmpty()) {
-                Log.d(TAG, "Fetched metadata for Alist song $songId: $title - $artistStr")
-                alistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
-                playlistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
+                if (!title.isNullOrEmpty()) {
+                    Log.d(TAG, "Fetched metadata for Alist song $songId: $title - $artistStr")
+                    alistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
+                    playlistDao.updateSongMetadata(songId, title, artistStr ?: "Unknown Artist", albumStr ?: "Unknown Album", durationValue, yearStr, trackNumberValue)
+                }
+                Unit
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch metadata for $rawUrl", e)
+            } finally {
+                retriever.release()
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch metadata for $rawUrl", e)
-        } finally {
-            retriever.release()
-        }
         }
     }
 }
