@@ -7,10 +7,10 @@ import code.name.monkey.retromusic.alist.network.*
 import code.name.monkey.retromusic.alist.model.*
 import code.name.monkey.retromusic.db.*
 import code.name.monkey.retromusic.model.Song
-import code.name.monkey.retromusic.util.MusicUtil
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 
 class AlistSongRepository(private val context: Context) : SongRepository {
     private val database = RetroDatabase.getInstance(context)
@@ -20,6 +20,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     companion object {
         private const val TAG = "AlistSongRepository"
         private const val MAX_SCAN_DEPTH = 5
+        private val AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "m4a", "ogg", "aac", "ape", "wma", "m4p", "opus", "m4b")
     }
 
     override fun songs(hideDuplicates: Boolean): List<Song> {
@@ -94,6 +95,11 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         }
     }
 
+    private fun isAudioFile(fileName: String): Boolean {
+        val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        return AUDIO_EXTENSIONS.contains(extension)
+    }
+
     private suspend fun scanFolderInternal(server: AlistServerEntity, service: AlistService, path: String, depth: Int) {
         if (depth > MAX_SCAN_DEPTH) return
         val response = service.listFiles(AlistFsListRequest(path), server.token)
@@ -102,7 +108,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         for (file in list) {
             if (file.isDir) {
                 scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1)
-            } else if (MusicUtil.isAudioFile(file.name)) {
+            } else if (isAudioFile(file.name)) {
                 songs.add(fileToEntity(server, file, path))
             }
         }
