@@ -195,8 +195,12 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
         val artistName = cursor.getStringOrNull(AudioColumns.ARTIST)
         val albumArtist = cursor.getStringOrNull("album_artist")
         val year = cursor.getStringOrNull(AudioColumns.YEAR)
+        val size = try { cursor.getLong(AudioColumns.SIZE) } catch (e: Exception) { 0L }
         val artistIds = artistId.toString()
         val artistNames = artistName
+
+        // Estimate bitrate: (size * 8) / (duration / 1000)
+        val bitrate = if (duration > 0) ((size * 8) / duration).toInt() else 0
 
         return Song(
             id,
@@ -213,7 +217,9 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
             composer ?: "",
             albumArtist ?: "",
             artistIds,
-            artistNames
+            artistNames,
+            bitrate,
+            size
         )
     }
 

@@ -60,7 +60,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         composer = composer,
         albumArtist = albumArtist,
         artistIds = artistIds,
-        artistNames = artistNames
+        artistNames = artistNames,
+        bitrate = bitrate,
+        size = size
     )
 
     suspend fun resolvePlaybackUrl(song: Song): String? {
@@ -138,7 +140,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                     composer = alistSong.composer,
                     albumArtist = alistSong.albumArtist,
                     artistIds = alistSong.artistIds,
-                    artistNames = alistSong.artistNames
+                    artistNames = alistSong.artistNames,
+                    bitrate = alistSong.bitrate,
+                    size = alistSong.size
                 )
             }
             playlistDao.insertSongsToPlaylist(playlistSongs)
@@ -214,7 +218,8 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             albumArtist = null,
             artistIds = null,
             artistNames = null,
-            sign = file.sign
+            sign = file.sign,
+            size = file.size
         )
     }
 
@@ -231,17 +236,22 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                 val trackNumberStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
 
                 val durationValue = durationStr?.toLongOrNull() ?: 0L
+                val bitrateValue = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
                 val trackNumberValue = trackNumberStr?.substringBefore('/')?.toIntOrNull() ?: 0
 
                 if (!title.isNullOrEmpty()) {
-                    Log.d(TAG, "Successfully fetched remote metadata for Alist song $songId: $title")
+                    Log.d(TAG, "Successfully fetched remote metadata for Alist song $songId: $title (Bitrate: $bitrateValue)")
                     val finalArtist = if (artistStr.isNullOrEmpty() || artistStr == "Unknown") "Unknown Artist" else artistStr
                     val finalAlbum = if (albumStr.isNullOrEmpty() || albumStr == "Unknown") "Unknown Album" else albumStr
                     
+                    // Get existing size to keep it
+                    val existingSong = alistDao.getAllSongs().find { it.id == songId }
+                    val currentSize = existingSong?.size ?: 0L
+
                     // Update main Alist storage
-                    alistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue)
+                    alistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue, bitrateValue, currentSize)
                     // Update all playlists containing this song
-                    playlistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue)
+                    playlistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue, bitrateValue, currentSize)
                 }
                 Unit
             } catch (e: Exception) {

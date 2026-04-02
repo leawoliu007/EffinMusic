@@ -33,7 +33,9 @@ open class Song(
     open val composer: String?,
     open val albumArtist: String?,
     open val artistIds: String? = null,
-    open val artistNames: String? = null
+    open val artistNames: String? = null,
+    open val bitrate: Int = 0,
+    open val size: Long = 0
 ) : Parcelable {
 
     // Manual copy function
@@ -52,12 +54,14 @@ open class Song(
         composer: String? = this.composer,
         albumArtist: String? = this.albumArtist,
         artistIds: String? = this.artistIds,
-        artistNames: String? = this.artistNames
+        artistNames: String? = this.artistNames,
+        bitrate: Int = this.bitrate,
+        size: Long = this.size
     ): Song {
         return Song(
             id, title, trackNumber, year, duration, data, dateModified,
             albumId, albumName, artistId, artistName, composer, albumArtist,
-            artistIds, artistNames
+            artistIds, artistNames, bitrate, size
         )
     }
 
