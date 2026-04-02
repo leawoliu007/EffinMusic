@@ -51,13 +51,4 @@ class RealLastAddedRepository(
     override fun recentArtists(): List<Artist> {
         return artistRepository.splitIntoArtists(recentAlbums())
     }
-
-    private fun makeLastAddedCursor(): Cursor? {
-        val cutoff = PreferenceUtil.lastAddedCutoff
-        return songRepository.makeSongCursor(
-            MediaStore.Audio.Media.DATE_ADDED + ">?",
-            arrayOf(cutoff.toString()),
-            MediaStore.Audio.Media.DATE_ADDED + " DESC"
-        )
-    }
 }

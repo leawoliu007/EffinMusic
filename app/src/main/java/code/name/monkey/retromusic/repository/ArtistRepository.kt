@@ -132,7 +132,7 @@ class RealArtistRepository(
 
     override fun albumArtists(query: String): List<Artist> {
         val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
-            .filter { it.albumArtist.contains(query, true) }
+            .filter { it.albumArtist?.contains(query, true) == true }
         val artists = splitIntoAlbumArtists(albumRepository.splitIntoAlbums(songs))
         return sortArtists(artists)
     }
