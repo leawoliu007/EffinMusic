@@ -93,6 +93,9 @@ class MetadataScanner(
             val artistIdsString = artistIds.joinToString(",")
             val artistNamesString = splitNames?.joinToString(", ") ?: ""
 
+            val file = File(song.data)
+            val fileSize = if (file.exists()) file.length() else 0L
+
             val entity = SongMetadataEntity(
                 id = song.id,
                 title = song.title,
@@ -108,7 +111,11 @@ class MetadataScanner(
                 albumId = song.albumId,
                 artistId = song.artistId,
                 artistIds = artistIdsString,
-                artistNames = artistNamesString
+                artistNames = artistNamesString,
+                bitrate = tag["BITRATE"]?.firstOrNull()?.toIntOrNull() ?: song.bitrate,
+                size = fileSize,
+                format = song.data.substringAfterLast('.', "").uppercase(),
+                sampleRate = tag["SAMPLERATE"]?.firstOrNull()?.toIntOrNull() ?: 0
             )
             dao.insert(entity)
 

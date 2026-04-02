@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         AlistFolderEntity::class,
         AlistSongEntity::class
     ],
-    version = 31,
+    version = 32,
     exportSchema = false
 )
 abstract class RetroDatabase : RoomDatabase() {

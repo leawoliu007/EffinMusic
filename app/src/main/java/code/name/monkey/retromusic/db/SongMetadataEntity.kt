@@ -19,6 +19,9 @@ data class SongMetadataEntity(
     val composer: String?,
     val albumArtist: String?,
     val artistIds: String?,
-    val artistNames: String?
-    
+    val artistNames: String?,
+    val bitrate: Int? = null,
+    val size: Long? = null,
+    val format: String? = null,
+    val sampleRate: Int? = null
 )

@@ -39,10 +39,11 @@ data class AlistSongEntity(
     val artistIds: String?,
     val artistNames: String?,
     val rawUrl: String? = null,
-    val sign: String? = null,
     val expires: Long = 0,
     val bitrate: Int = 0,
-    val size: Long = 0
+    val size: Long = 0,
+    val format: String? = null,
+    val sampleRate: Int = 0
 )
 
 @Dao
@@ -74,6 +75,9 @@ interface AlistDao {
     @Query("SELECT * FROM alist_song")
     suspend fun getAllSongs(): List<AlistSongEntity>
 
+    @Query("SELECT * FROM alist_song WHERE id = :songId")
+    suspend fun getSongById(songId: Long): AlistSongEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSongs(songs: List<AlistSongEntity>)
 
@@ -83,6 +87,6 @@ interface AlistDao {
     @Query("DELETE FROM alist_song WHERE serverId = :serverId AND data LIKE :path || '%'")
     suspend fun deleteSongsByPath(serverId: Long, path: String)
 
-    @Query("UPDATE alist_song SET title = :title, artistName = :artist, albumName = :album, duration = :duration, year = :year, trackNumber = :trackNumber, bitrate = :bitrate, size = :size WHERE id = :songId")
-    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int, bitrate: Int, size: Long)
+    @Query("UPDATE alist_song SET title = :title, artistName = :artist, albumName = :album, duration = :duration, year = :year, trackNumber = :trackNumber, bitrate = :bitrate, size = :size, format = :format, sampleRate = :sampleRate WHERE id = :songId")
+    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int, bitrate: Int, size: Long, format: String?, sampleRate: Int)
 }

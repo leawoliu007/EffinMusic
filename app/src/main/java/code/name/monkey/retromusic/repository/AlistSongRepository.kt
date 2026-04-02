@@ -62,7 +62,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         artistIds = artistIds,
         artistNames = artistNames,
         bitrate = bitrate,
-        size = size
+        size = size,
+        format = format,
+        sampleRate = sampleRate
     )
 
     suspend fun resolvePlaybackUrl(song: Song): String? {
@@ -142,7 +144,9 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                     artistIds = alistSong.artistIds,
                     artistNames = alistSong.artistNames,
                     bitrate = alistSong.bitrate,
-                    size = alistSong.size
+                    size = alistSong.size,
+                    format = alistSong.format,
+                    sampleRate = alistSong.sampleRate
                 )
             }
             playlistDao.insertSongsToPlaylist(playlistSongs)
@@ -219,7 +223,8 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             artistIds = null,
             artistNames = null,
             sign = file.sign,
-            size = file.size
+            size = file.size,
+            format = file.name.substringAfterLast('.', "").uppercase()
         )
     }
 
@@ -227,31 +232,41 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         withContext(Dispatchers.IO) {
             val retriever = android.media.MediaMetadataRetriever()
             try {
-                retriever.setDataSource(rawUrl, HashMap())
+                Log.d(TAG, "Starting metadata fetch for: $rawUrl")
+                val headers = HashMap<String, String>()
+                headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                
+                retriever.setDataSource(rawUrl, headers)
+                
                 val title = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
                 val artistStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
                 val albumStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ALBUM)
                 val durationStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
                 val yearStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_YEAR)
                 val trackNumberStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
+                val bitrateStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)
 
                 val durationValue = durationStr?.toLongOrNull() ?: 0L
-                val bitrateValue = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull() ?: 0
+                val bitrateValue = bitrateStr?.toIntOrNull() ?: 0
                 val trackNumberValue = trackNumberStr?.substringBefore('/')?.toIntOrNull() ?: 0
+                val sampleRateValue = if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0
+                } else 0
 
-                if (!title.isNullOrEmpty()) {
-                    Log.d(TAG, "Successfully fetched remote metadata for Alist song $songId: $title (Bitrate: $bitrateValue)")
-                    val finalArtist = if (artistStr.isNullOrEmpty() || artistStr == "Unknown") "Unknown Artist" else artistStr
-                    val finalAlbum = if (albumStr.isNullOrEmpty() || albumStr == "Unknown") "Unknown Album" else albumStr
+                // Get existing info to avoid overwriting with "Unknown"
+                val existingSong = alistDao.getSongById(songId)
+                if (existingSong != null) {
+                    val finalTitle = if (title.isNullOrEmpty()) existingSong.title else title
+                    val finalArtist = if (artistStr.isNullOrEmpty()) existingSong.artistName else artistStr
+                    val finalAlbum = if (albumStr.isNullOrEmpty()) existingSong.albumName else albumStr
+                    val finalYear = if (yearStr.isNullOrEmpty()) existingSong.year else yearStr
                     
-                    // Get existing size to keep it
-                    val existingSong = alistDao.getAllSongs().find { it.id == songId }
-                    val currentSize = existingSong?.size ?: 0L
-
+                    Log.d(TAG, "Updating metadata for $songId: $finalTitle, Duration: $durationValue, Bitrate: $bitrateValue, SR: $sampleRateValue")
+                    
                     // Update main Alist storage
-                    alistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue, bitrateValue, currentSize)
+                    alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue)
                     // Update all playlists containing this song
-                    playlistDao.updateSongMetadata(songId, title, finalArtist, finalAlbum, durationValue, yearStr, trackNumberValue, bitrateValue, currentSize)
+                    playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue)
                 }
                 Unit
             } catch (e: Exception) {

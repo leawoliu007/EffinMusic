@@ -201,6 +201,7 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
 
         // Estimate bitrate: (size * 8) / (duration / 1000)
         val bitrate = if (duration > 0) ((size * 8) / duration).toInt() else 0
+        val format = data.substringAfterLast('.', "").uppercase()
 
         return Song(
             id,
@@ -219,7 +220,9 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
             artistIds,
             artistNames,
             bitrate,
-            size
+            size,
+            format,
+            0
         )
     }
 
@@ -252,7 +255,9 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
                     composer     = meta.composer ?: base.composer,
                     albumArtist  = meta.albumArtist ?: base.albumArtist,
                     artistIds  = meta.artistIds ?: base.artistIds,
-                    artistNames  = meta.artistNames ?: base.artistNames
+                    artistNames  = meta.artistNames ?: base.artistNames,
+                    bitrate = meta.bitrate ?: base.bitrate,
+                    size = meta.size ?: base.size
                 )
             }
         }

@@ -35,7 +35,9 @@ open class Song(
     open val artistIds: String? = null,
     open val artistNames: String? = null,
     open val bitrate: Int = 0,
-    open val size: Long = 0
+    open val size: Long = 0,
+    open val format: String? = null,
+    open val sampleRate: Int = 0
 ) : Parcelable {
 
     // Manual copy function
@@ -56,12 +58,14 @@ open class Song(
         artistIds: String? = this.artistIds,
         artistNames: String? = this.artistNames,
         bitrate: Int = this.bitrate,
-        size: Long = this.size
+        size: Long = this.size,
+        format: String? = this.format,
+        sampleRate: Int = this.sampleRate
     ): Song {
         return Song(
             id, title, trackNumber, year, duration, data, dateModified,
             albumId, albumName, artistId, artistName, composer, albumArtist,
-            artistIds, artistNames, bitrate, size
+            artistIds, artistNames, bitrate, size, format, sampleRate
         )
     }
 
@@ -88,6 +92,10 @@ open class Song(
         if (albumArtist != other.albumArtist) return false
         if (artistIds != other.artistIds) return false
         if (artistNames != other.artistNames) return false
+        if (bitrate != other.bitrate) return false
+        if (size != other.size) return false
+        if (format != other.format) return false
+        if (sampleRate != other.sampleRate) return false
 
         return true
     }
@@ -106,8 +114,12 @@ open class Song(
         result = 31 * result + artistName.hashCode()
         result = 31 * result + (composer?.hashCode() ?: 0)
         result = 31 * result + (albumArtist?.hashCode() ?: 0)
-        result = 31 * result + artistIds.hashCode()
-        result = 31 * result + artistNames.hashCode()
+        result = 31 * result + (artistIds?.hashCode() ?: 0)
+        result = 31 * result + (artistNames?.hashCode() ?: 0)
+        result = 31 * result + bitrate
+        result = 31 * result + size.hashCode()
+        result = 31 * result + (format?.hashCode() ?: 0)
+        result = 31 * result + sampleRate
         return result
     }
 
@@ -130,7 +142,11 @@ open class Song(
             composer = "",
             albumArtist = "",
             artistIds = "",
-            artistNames = ""
+            artistNames = "",
+            bitrate = 0,
+            size = 0,
+            format = null,
+            sampleRate = 0
         )
     }
 }
