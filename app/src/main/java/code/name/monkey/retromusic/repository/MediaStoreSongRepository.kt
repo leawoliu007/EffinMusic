@@ -57,6 +57,7 @@ interface SongRepository {
     fun song(cursor: Cursor?): Song
 
     fun song(songId: Long): Song
+    fun songs(ids: LongArray): List<Song>
 }
 
 class MediaStoreSongRepository(private val context: Context) : SongRepository {
@@ -163,6 +164,11 @@ class MediaStoreSongRepository(private val context: Context) : SongRepository {
 
     override fun song(songId: Long): Song {
         return song(makeSongCursor(AudioColumns._ID + "=?", arrayOf(songId.toString())))
+    }
+
+    override fun songs(ids: LongArray): List<Song> {
+        val selection = AudioColumns._ID + " IN (" + ids.joinToString(",") + ")"
+        return songs(makeSongCursor(selection, null))
     }
 
     override fun songsByFilePath(filePath: String, ignoreBlacklist: Boolean): List<Song> {

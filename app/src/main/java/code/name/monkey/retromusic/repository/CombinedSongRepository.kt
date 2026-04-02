@@ -44,4 +44,18 @@ class CombinedSongRepository(
         }
         return mediaStore.song(songId)
     }
+
+    override fun songs(ids: LongArray): List<Song> {
+        val alistIds = ids.filter { it < 0 }.toLongArray()
+        val mediaStoreIds = ids.filter { it >= 0 }.toLongArray()
+        
+        val results = mutableListOf<Song>()
+        if (alistIds.isNotEmpty()) {
+            results.addAll(alist.songs(alistIds))
+        }
+        if (mediaStoreIds.isNotEmpty()) {
+            results.addAll(mediaStore.songs(mediaStoreIds))
+        }
+        return results
+    }
 }

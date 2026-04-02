@@ -33,39 +33,23 @@ interface AlbumRepository {
     fun album(albumId: Long): Album
 }
 
-class RealAlbumRepository(private val songRepository: MediaStoreSongRepository) :
+class RealAlbumRepository(private val songRepository: SongRepository) :
     AlbumRepository {
 
     override fun albums(): List<Album> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                null,
-                null,
-                getSongLoaderSortOrder()
-            ),
-            hideDuplicates = PreferenceUtil.hideDuplicateSongs
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
         return splitIntoAlbums(songs)
     }
 
     override fun albums(query: String): List<Album> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                "${AudioColumns.ALBUM} LIKE ? OR ${AudioColumns.ARTIST} LIKE ?",
-                arrayOf("%$query%", "%$query%"),
-                getSongLoaderSortOrder()
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.albumName.contains(query, true) || it.artistName.contains(query, true) }
         return splitIntoAlbums(songs)
     }
 
     override fun album(albumId: Long): Album {
-        val cursor = songRepository.makeSongCursor(
-            "${AudioColumns.ALBUM_ID} = ?",
-            arrayOf(albumId.toString()),
-            getSongLoaderSortOrder()
-        )
-        val songs = songRepository.songs(cursor, hideDuplicates = PreferenceUtil.hideDuplicateSongs)
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.albumId == albumId }
         val album = Album(albumId, songs)
         return sortAlbumSongs(album)
     }

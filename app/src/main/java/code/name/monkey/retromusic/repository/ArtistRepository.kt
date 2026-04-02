@@ -39,7 +39,7 @@ interface ArtistRepository {
 }
 
 class RealArtistRepository(
-    private val songRepository: MediaStoreSongRepository,
+    private val songRepository: SongRepository,
     private val albumRepository: RealAlbumRepository
 ) : ArtistRepository {
 
@@ -52,39 +52,20 @@ class RealArtistRepository(
     override fun artist(artistId: Long): Artist {
         if (artistId == Artist.VARIOUS_ARTISTS_ID) {
             // Get Various Artists
-            val songs = songRepository.songs(
-                songRepository.makeSongCursor(
-                    null,
-                    null,
-                    getSongLoaderSortOrder()
-                ),
-                hideDuplicates = PreferenceUtil.hideDuplicateSongs
-            )
+            val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
 
             val albums = albumRepository.splitIntoAlbums(songs)
                 .filter { it.albumArtist == Artist.VARIOUS_ARTISTS_DISPLAY_NAME }
             return Artist(Artist.VARIOUS_ARTISTS_ID, albums)
         }
 
-        val songs = if (!PreferenceUtil.fixYear) {
-            songRepository.songs(
-                songRepository.makeSongCursor(
-                    AudioColumns.ARTIST_ID + "=?",
-                    arrayOf(artistId.toString()),
-                    getSongLoaderSortOrder()
-                ),
-                hideDuplicates = PreferenceUtil.hideDuplicateSongs
-            )
-        } else {
-            songRepository.songs(PreferenceUtil.hideDuplicateSongs)
-                .filter { song ->
-                    val artistIds = song.artistIds
-                        ?.split(",")
-                        ?.mapNotNull { id -> id.trim().toLongOrNull() } 
-                        ?: emptyList()
-                    artistId in artistIds
-                }
-        }
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { song ->
+                val artistIds = (song.artistIds ?: song.artistId.toString())
+                    .split(",")
+                    .mapNotNull { id -> id.trim().toLongOrNull() }
+                artistId in artistIds
+            }
         val albums = albumRepository.splitIntoAlbums(songs)
             .map { album ->
                 val songsForArtist = album.songs.filter { song ->
@@ -126,72 +107,39 @@ class RealArtistRepository(
     override fun albumArtist(artistName: String): Artist {
         if (artistName == Artist.VARIOUS_ARTISTS_DISPLAY_NAME) {
             // Get Various Artists
-            val songs = songRepository.songs(
-                songRepository.makeSongCursor(
-                    null,
-                    null,
-                    getSongLoaderSortOrder()
-                )
-            )
+            val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
             val albums = albumRepository.splitIntoAlbums(songs)
                 .filter { it.albumArtist == Artist.VARIOUS_ARTISTS_DISPLAY_NAME }
             return Artist(Artist.VARIOUS_ARTISTS_ID, albums, true)
         }
 
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                "album_artist" + "=?",
-                arrayOf(artistName),
-                getSongLoaderSortOrder()
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.albumArtist == artistName }
         return Artist(artistName, albumRepository.splitIntoAlbums(songs), true)
     }
 
     override fun artists(): List<Artist> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                null, null,
-                getSongLoaderSortOrder()
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
         val artists = splitIntoArtists(albumRepository.splitIntoAlbums(songs))
         return sortArtists(artists)
     }
 
     override fun albumArtists(): List<Artist> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                null,
-                null,
-                "lower($ALBUM_ARTIST)" +
-                        if (PreferenceUtil.artistSortOrder == SortOrder.ArtistSortOrder.ARTIST_A_Z) "" else " DESC"
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
         val artists = splitIntoAlbumArtists(albumRepository.splitIntoAlbums(songs))
         return sortArtists(artists)
     }
 
     override fun albumArtists(query: String): List<Artist> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                "album_artist" + " LIKE ?",
-                arrayOf("%$query%"),
-                getSongLoaderSortOrder()
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.albumArtist.contains(query, true) }
         val artists = splitIntoAlbumArtists(albumRepository.splitIntoAlbums(songs))
         return sortArtists(artists)
     }
 
     override fun artists(query: String): List<Artist> {
-        val songs = songRepository.songs(
-            songRepository.makeSongCursor(
-                AudioColumns.ARTIST + " LIKE ?",
-                arrayOf("%$query%"),
-                getSongLoaderSortOrder()
-            )
-        )
+        val songs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.artistName.contains(query, true) }
         val artists = splitIntoArtists(albumRepository.splitIntoAlbums(songs))
         return sortArtists(artists)
     }

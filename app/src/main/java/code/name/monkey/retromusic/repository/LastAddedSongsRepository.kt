@@ -33,12 +33,15 @@ interface LastAddedRepository {
 }
 
 class RealLastAddedRepository(
-    private val songRepository: MediaStoreSongRepository,
+    private val songRepository: SongRepository,
     private val albumRepository: RealAlbumRepository,
     private val artistRepository: RealArtistRepository
 ) : LastAddedRepository {
     override fun recentSongs(): List<Song> {
-        return songRepository.songs(makeLastAddedCursor())
+        val cutoff = PreferenceUtil.lastAddedCutoff
+        return songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+            .filter { it.dateModified > cutoff }
+            .sortedByDescending { it.dateModified }
     }
 
     override fun recentAlbums(): List<Album> {

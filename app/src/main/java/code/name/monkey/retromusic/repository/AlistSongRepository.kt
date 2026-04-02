@@ -40,6 +40,11 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         return songs().firstOrNull { it.id == songId } ?: Song.emptySong
     }
 
+    override fun songs(ids: LongArray): List<Song> {
+        val all = runBlocking { alistDao.getAllSongs() }
+        return all.filter { it.id in ids.asList() }.map { it.toSong() }
+    }
+
     private fun AlistSongEntity.toSong() = Song(
         id = id,
         title = title,
@@ -200,7 +205,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             year = null,
             duration = 0,
             data = remotePath,
-            dateModified = 0,
+            dateModified = System.currentTimeMillis() / 1000,
             albumId = -1,
             albumName = album,
             artistId = -1,

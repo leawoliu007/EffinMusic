@@ -45,39 +45,43 @@ interface TopPlayedRepository {
 
 class RealTopPlayedRepository(
     private val context: Context,
-    private val songRepository: MediaStoreSongRepository,
+    private val songRepository: SongRepository,
     private val albumRepository: RealAlbumRepository,
     private val artistRepository: RealArtistRepository
 ) : TopPlayedRepository {
 
     override fun recentlyPlayedTracks(): List<Song> {
-        return songRepository.songs(makeRecentTracksCursorAndClearUpDatabase())
+        val ids = HistoryStore.getInstance(context).queryRecentIds(PreferenceUtil.getRecentlyPlayedCutoffTimeMillis().toLong()).use { cursor ->
+            val result = mutableListOf<Long>()
+            while (cursor.moveToNext()) {
+                result.add(cursor.getLong(cursor.getColumnIndex(HistoryStore.RecentStoreColumns.ID)))
+            }
+            result.toLongArray()
+        }
+        return songRepository.songs(ids)
     }
 
     override fun topTracks(): List<Song> {
-        return songRepository.songs(makeTopTracksCursorAndClearUpDatabase())
+        val ids = SongPlayCountStore.getInstance(context).getTopPlayedResults(NUMBER_OF_TOP_TRACKS).use { cursor ->
+            val result = mutableListOf<Long>()
+            while (cursor.moveToNext()) {
+                result.add(cursor.getLong(cursor.getColumnIndex(SongPlayCountStore.SongPlayCountColumns.ID)))
+            }
+            result.toLongArray()
+        }
+        return songRepository.songs(ids)
     }
 
     override fun notRecentlyPlayedTracks(): List<Song> {
-        val allSongs = mutableListOf<Song>().apply {
-            addAll(
-                songRepository.songs(
-                    songRepository.makeSongCursor(
-                        null, null,
-                        MediaStore.Audio.Media.DATE_ADDED + " ASC"
-                    )
-                )
-            )
+        val allSongs = songRepository.songs(PreferenceUtil.hideDuplicateSongs)
+        val playedIds = SongPlayCountStore.getInstance(context).getTopPlayedResults(1000).use { cursor ->
+            val result = mutableListOf<Long>()
+            while (cursor.moveToNext()) {
+                result.add(cursor.getLong(cursor.getColumnIndex(SongPlayCountStore.SongPlayCountColumns.ID)))
+            }
+            result.toSet()
         }
-        val playedSongs = songRepository.songs(
-            makePlayedTracksCursorAndClearUpDatabase()
-        )
-        val notRecentlyPlayedSongs = songRepository.songs(
-            makeNotRecentTracksCursorAndClearUpDatabase()
-        )
-        allSongs.removeAll(playedSongs.toSet())
-        allSongs.addAll(notRecentlyPlayedSongs)
-        return allSongs
+        return allSongs.filter { it.id !in playedIds }
     }
 
     override fun topAlbums(): List<Album> {
