@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         AlistFolderEntity::class,
         AlistSongEntity::class
     ],
-    version = 30,
+    version = 31,
     exportSchema = false
 )
 abstract class RetroDatabase : RoomDatabase() {
@@ -36,7 +36,8 @@ abstract class RetroDatabase : RoomDatabase() {
                     context.applicationContext,
                     RetroDatabase::class.java,
                     "playlist.db" // Match MainModule.kt
-                ).addMigrations(*allMigrations)
+                ).fallbackToDestructiveMigration()
+                 .addMigrations(*allMigrations)
                  .build()
                 INSTANCE = instance
                 instance
