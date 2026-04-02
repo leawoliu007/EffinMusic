@@ -80,4 +80,7 @@ interface AlistDao {
     
     @Query("DELETE FROM alist_song WHERE serverId = :serverId AND data LIKE :path || '%'")
     suspend fun deleteSongsByPath(serverId: Long, path: String)
+
+    @Query("UPDATE alist_song SET title = :title, artistName = :artist, albumName = :album, duration = :duration, year = :year, trackNumber = :trackNumber WHERE id = :songId")
+    suspend fun updateSongMetadata(songId: Long, title: String, artist: String, album: String, duration: Long, year: String?, trackNumber: Int)
 }
