@@ -105,23 +105,7 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
     private fun startFullScan() {
         showToast("Scanning library...")
         lifecycleScope.launch(Dispatchers.IO) {
-            // Ensure the special 'Alist' playlist exists for grouping songs in UI
-            val alistPlaylistName = "Alist"
-            val db = RetroDatabase.getInstance(requireContext())
-            val existing = db.playlistDao().playlists().find { it.playListId == AlistSongRepository.ALIST_PLAYLIST_ID }
-            if (existing == null) {
-                db.playlistDao().createPlaylist(
-                    code.name.monkey.retromusic.db.PlaylistEntity(
-                        playListId = AlistSongRepository.ALIST_PLAYLIST_ID,
-                        playlistName = alistPlaylistName
-                    )
-                )
-            }
-            
-            val folders = alistDao.getAllFolders()
-            for (folder in folders) {
-                alistRepo.scanFolder(folder.serverId, folder.remotePath)
-            }
+            alistRepo.scanFolders()
             withContext(Dispatchers.Main) {
                 libraryViewModel.forceReload(ReloadType.Playlists)
                 showToast("Library scan complete")

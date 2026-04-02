@@ -21,7 +21,6 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         private const val TAG = "AlistSongRepository"
         private const val MAX_SCAN_DEPTH = 5
         private val AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "m4a", "ogg", "aac", "ape", "wma", "m4p", "opus", "m4b")
-        const val ALIST_PLAYLIST_ID = -2L
     }
 
     override fun songs(hideDuplicates: Boolean): List<Song> {
@@ -81,33 +80,51 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         return response.data?.rawUrl
     }
 
-    // Ensures the specjal Alist playlist exists in the database
-    private suspend fun ensureAlistPlaylist() {
-        val existing = playlistDao.playlists().find { it.playListId == ALIST_PLAYLIST_ID }
-        if (existing == null) {
-            playlistDao.createPlaylist(
-                PlaylistEntity(
-                    playListId = ALIST_PLAYLIST_ID,
-                    playlistName = "Alist"
-                )
-            )
+    private fun generatePlaylistName(server: AlistServerEntity, path: String): String {
+        val trimmed = path.trim('/')
+        return if (trimmed.isEmpty()) {
+            if (server.name.isNotBlank()) {
+                server.name
+            } else {
+                // Sanitize URL: Remove protocol and trailing slashes
+                server.url.removePrefix("https://").removePrefix("http://").trimEnd('/')
+            }
+        } else {
+            // Get the last segment of the path (the chosen folder C from A/B/C)
+            trimmed.substringAfterLast('/')
         }
     }
 
-    // Public compatibility method for Fragments
+    private suspend fun getOrCreatePlaylistForFolder(server: AlistServerEntity, path: String): Long {
+        val playlistName = generatePlaylistName(server, path)
+        // Use a consistent negative ID based on the unique path to keep it stable
+        val playlistId = -Math.abs((server.url + path).hashCode().toLong())
+        
+        val allPlaylists = playlistDao.playlists()
+        val existing = allPlaylists.find { it.playListId == playlistId }
+        
+        if (existing == null) {
+            playlistDao.createPlaylist(
+                PlaylistEntity(
+                    playListId = playlistId,
+                    playlistName = playlistName
+                )
+            )
+        }
+        return playlistId
+    }
+
     suspend fun scanFolder(serverId: Long, path: String) {
         val server = alistDao.getServerById(serverId) ?: return
         val service = AlistClient.create(server.url, server.token)
-        ensureAlistPlaylist()
-        scanFolderInternal(server, service, path, 0)
+        val playlistId = getOrCreatePlaylistForFolder(server, path)
+        scanFolderInternal(server, service, path, 0, playlistId)
     }
 
     suspend fun scanFolders() {
-        val servers = alistDao.getAllServers()
-        ensureAlistPlaylist()
-        for (server in servers) {
-            val service = AlistClient.create(server.url, server.token)
-            scanFolderInternal(server, service, "/", 0)
+        val folders = alistDao.getAllFolders()
+        for (folder in folders) {
+            scanFolder(folder.serverId, folder.remotePath)
         }
     }
 
@@ -116,14 +133,15 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         return AUDIO_EXTENSIONS.contains(extension)
     }
 
-    private suspend fun scanFolderInternal(server: AlistServerEntity, service: AlistService, path: String, depth: Int) {
+    private suspend fun scanFolderInternal(server: AlistServerEntity, service: AlistService, path: String, depth: Int, playlistId: Long) {
         if (depth > MAX_SCAN_DEPTH) return
         val response = service.listFiles(AlistFsListRequest(path), server.token)
         val list = response.data?.content ?: return
         val songs = mutableListOf<AlistSongEntity>()
         for (file in list) {
             if (file.isDir) {
-                scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1)
+                // For subfolders, we'll keep them in the same playlist to avoid creating thousands of playlists
+                scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1, playlistId)
             } else if (isAudioFile(file.name)) {
                 songs.add(fileToEntity(server, file, path))
             }
@@ -132,7 +150,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             alistDao.insertSongs(songs)
             val playlistSongs = songs.map { alistSong ->
                 SongEntity(
-                    playlistCreatorId = ALIST_PLAYLIST_ID,
+                    playlistCreatorId = playlistId,
                     id = alistSong.id,
                     title = alistSong.title,
                     trackNumber = alistSong.trackNumber,
@@ -170,7 +188,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             title = nameWithoutExtension.substringAfter(" - ").trim()
         }
 
-        val album = if (parentPath == "/" || parentPath.isEmpty()) "Alist" else parentPath.substringAfterLast('/')
+        val album = if (parentPath == "/" || parentPath.isEmpty()) "Alist" else parentPath.trimEnd('/').substringAfterLast('/')
         val remotePath = if (parentPath == "/") "/${file.name}" else "$parentPath/${file.name}"
         val idValue = (server.url + remotePath).hashCode().toLong()
         val negativeId = -Math.abs(idValue)
