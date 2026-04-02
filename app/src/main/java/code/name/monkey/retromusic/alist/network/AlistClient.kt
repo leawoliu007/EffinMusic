@@ -5,13 +5,17 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object AlistClient {
-    fun create(baseUrl: String): AlistService {
+    fun create(baseUrl: String, token: String? = null): AlistService {
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("User-Agent", "EffinMusic-Alist")
-                    .build()
-                chain.proceed(request)
+                
+                if (!token.isNullOrEmpty()) {
+                    request.addHeader("Authorization", token)
+                }
+                
+                chain.proceed(request.build())
             }
             .build()
 

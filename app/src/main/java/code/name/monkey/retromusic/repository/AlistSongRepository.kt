@@ -3,10 +3,11 @@ package code.name.monkey.retromusic.repository
 import android.content.Context
 import android.database.Cursor
 import android.util.Log
-import code.name.monkey.retromusic.alist.network.AlistClient
+import code.name.monkey.retromusic.alist.network.*
 import code.name.monkey.retromusic.alist.model.*
 import code.name.monkey.retromusic.db.*
 import code.name.monkey.retromusic.model.Song
+import code.name.monkey.retromusic.util.MusicUtil
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
@@ -73,26 +74,34 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     suspend fun resolvePlaybackUrl(song: Song): String? {
         val alistSong = alistDao.getSongById(song.id) ?: return null
         val server = alistDao.getServerById(alistSong.serverId) ?: return null
-        val client = AlistClient(server.url, server.token)
-        val file = client.getFile(alistSong.data)
-        return file?.rawUrl
+        val service = AlistClient.create(server.url, server.token)
+        val response = service.getFile(AlistFsGetRequest(alistSong.data), server.token)
+        return response.data?.rawUrl
+    }
+
+    // Public compatibility method for Fragments
+    suspend fun scanFolder(serverId: Long, path: String) {
+        val server = alistDao.getServerById(serverId) ?: return
+        val service = AlistClient.create(server.url, server.token)
+        scanFolderInternal(server, service, path, 0)
     }
 
     suspend fun scanFolders() {
         val servers = alistDao.getAllServers()
         for (server in servers) {
-            val client = AlistClient(server.url, server.token)
-            scanFolder(server, client, "/", 0)
+            val service = AlistClient.create(server.url, server.token)
+            scanFolderInternal(server, service, "/", 0)
         }
     }
 
-    private suspend fun scanFolder(server: AlistServerEntity, client: AlistClient, path: String, depth: Int) {
+    private suspend fun scanFolderInternal(server: AlistServerEntity, service: AlistService, path: String, depth: Int) {
         if (depth > MAX_SCAN_DEPTH) return
-        val list = client.listFiles(path) ?: return
+        val response = service.listFiles(AlistFsListRequest(path), server.token)
+        val list = response.data?.content ?: return
         val songs = mutableListOf<AlistSongEntity>()
         for (file in list) {
             if (file.isDir) {
-                scanFolder(server, client, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1)
+                scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1)
             } else if (MusicUtil.isAudioFile(file.name)) {
                 songs.add(fileToEntity(server, file, path))
             }
@@ -101,7 +110,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             alistDao.insertSongs(songs)
             val playlistSongs = songs.map { alistSong ->
                 SongEntity(
-                    playlistCreatorId = -2L, // Special ID for Alist Songs
+                    playlistCreatorId = -2L,
                     id = alistSong.id,
                     title = alistSong.title,
                     trackNumber = alistSong.trackNumber,
@@ -193,7 +202,6 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                     retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0
                 } else 0
 
-                // COVER EXTRACTION
                 var finalCoverPath: String? = null
                 val picture = retriever.embeddedPicture
                 if (picture != null) {
@@ -205,13 +213,11 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                             fos.write(picture)
                         }
                         finalCoverPath = coverFile.absolutePath
-                        Log.d(TAG, "Cover saved for $songId: $finalCoverPath")
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to save cover: ${e.message}")
                     }
                 }
 
-                // Get existing info to avoid overwriting with "Unknown"
                 val existingSong = alistDao.getSongById(songId)
                 if (existingSong != null) {
                     val finalTitle = if (title.isNullOrEmpty()) existingSong.title else title
@@ -223,9 +229,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
                     Log.d(TAG, "Updating metadata for $songId: $finalTitle, Artist: $finalArtist, Duration: $durationValue")
                     
-                    // Update main Alist storage
                     alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
-                    // Update all playlists containing this song
                     playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
                 }
                 Unit
