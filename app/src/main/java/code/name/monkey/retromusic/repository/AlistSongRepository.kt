@@ -21,6 +21,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         private const val TAG = "AlistSongRepository"
         private const val MAX_SCAN_DEPTH = 5
         private val AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "m4a", "ogg", "aac", "ape", "wma", "m4p", "opus", "m4b")
+        const val ALIST_PLAYLIST_ID = -2L
     }
 
     override fun songs(hideDuplicates: Boolean): List<Song> {
@@ -80,15 +81,30 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         return response.data?.rawUrl
     }
 
+    // Ensures the specjal Alist playlist exists in the database
+    private suspend fun ensureAlistPlaylist() {
+        val existing = playlistDao.playlists().find { it.playListId == ALIST_PLAYLIST_ID }
+        if (existing == null) {
+            playlistDao.createPlaylist(
+                PlaylistEntity(
+                    playListId = ALIST_PLAYLIST_ID,
+                    playlistName = "Alist"
+                )
+            )
+        }
+    }
+
     // Public compatibility method for Fragments
     suspend fun scanFolder(serverId: Long, path: String) {
         val server = alistDao.getServerById(serverId) ?: return
         val service = AlistClient.create(server.url, server.token)
+        ensureAlistPlaylist()
         scanFolderInternal(server, service, path, 0)
     }
 
     suspend fun scanFolders() {
         val servers = alistDao.getAllServers()
+        ensureAlistPlaylist()
         for (server in servers) {
             val service = AlistClient.create(server.url, server.token)
             scanFolderInternal(server, service, "/", 0)
@@ -116,7 +132,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             alistDao.insertSongs(songs)
             val playlistSongs = songs.map { alistSong ->
                 SongEntity(
-                    playlistCreatorId = -2L,
+                    playlistCreatorId = ALIST_PLAYLIST_ID,
                     id = alistSong.id,
                     title = alistSong.title,
                     trackNumber = alistSong.trackNumber,
@@ -145,11 +161,13 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
     private fun fileToEntity(server: AlistServerEntity, file: AlistFile, parentPath: String): AlistSongEntity {
         val fileName = file.name
-        var title = fileName
+        val nameWithoutExtension = if (fileName.contains('.')) fileName.substringBeforeLast('.') else fileName
+        var title = nameWithoutExtension
         var artist = server.name
-        if (fileName.contains(" - ")) {
-            artist = fileName.substringBefore(" - ").trim()
-            title = fileName.substringAfter(" - ").trim()
+        
+        if (nameWithoutExtension.contains(" - ")) {
+            artist = nameWithoutExtension.substringBefore(" - ").trim()
+            title = nameWithoutExtension.substringAfter(" - ").trim()
         }
 
         val album = if (parentPath == "/" || parentPath.isEmpty()) "Alist" else parentPath.substringAfterLast('/')

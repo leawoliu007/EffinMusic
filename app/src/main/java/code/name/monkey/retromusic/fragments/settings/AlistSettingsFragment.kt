@@ -105,12 +105,17 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
     private fun startFullScan() {
         showToast("Scanning library...")
         lifecycleScope.launch(Dispatchers.IO) {
-            // TEST: Create a blank test playlist
-            val FavoriteName = "MyFavoriteMusic"
+            // Ensure the special 'Alist' playlist exists for grouping songs in UI
+            val alistPlaylistName = "Alist"
             val db = RetroDatabase.getInstance(requireContext())
-            val existing = db.playlistDao().playlist(FavoriteName)
-            if (existing.isEmpty()) {
-                db.playlistDao().createPlaylist(PlaylistEntity(playlistName = FavoriteName))
+            val existing = db.playlistDao().playlists().find { it.playListId == AlistSongRepository.ALIST_PLAYLIST_ID }
+            if (existing == null) {
+                db.playlistDao().createPlaylist(
+                    code.name.monkey.retromusic.db.PlaylistEntity(
+                        playListId = AlistSongRepository.ALIST_PLAYLIST_ID,
+                        playlistName = alistPlaylistName
+                    )
+                )
             }
             
             val folders = alistDao.getAllFolders()
