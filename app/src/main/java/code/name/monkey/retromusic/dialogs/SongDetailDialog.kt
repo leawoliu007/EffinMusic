@@ -11,6 +11,10 @@
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
+ * This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
  */
 package code.name.monkey.retromusic.dialogs
 
@@ -32,6 +36,7 @@ import code.name.monkey.retromusic.model.Song
 import code.name.monkey.retromusic.util.MusicUtil
 import org.jaudiotagger.audio.AudioFileIO
 import java.io.File
+import java.util.Locale
 
 class SongDetailDialog : DialogFragment() {
 
@@ -105,8 +110,37 @@ class SongDetailDialog : DialogFragment() {
                         MusicUtil.getReadableDurationString(song.duration)
                     )
                 }
+            } else if (song.id < 0) {
+                // Alist Song metadata display
+                binding.fileName.text =
+                    makeTextWithTitle(context, R.string.label_file_name, if (song.title.contains('.')) song.title else "${song.title}.${song.format.lowercase()}")
+                binding.filePath.text =
+                    makeTextWithTitle(context, R.string.label_file_path, "Alist: ${song.data}")
+                binding.fileSize.text =
+                    makeTextWithTitle(context, R.string.label_file_size, getFileSizeString(song.size))
+                binding.fileFormat.text =
+                    makeTextWithTitle(context, R.string.label_file_format, song.format)
+                binding.trackLength.text = makeTextWithTitle(
+                    context,
+                    R.string.label_track_length,
+                    MusicUtil.getReadableDurationString(song.duration)
+                )
+                if (song.bitrate > 0) {
+                    binding.bitrate.text = makeTextWithTitle(
+                        context,
+                        R.string.label_bit_rate,
+                        "${song.bitrate / 1000} kb/s"
+                    )
+                }
+                if (song.sampleRate > 0) {
+                    binding.samplingRate.text = makeTextWithTitle(
+                        context,
+                        R.string.label_sampling_rate,
+                        "${song.sampleRate} Hz"
+                    )
+                }
             } else {
-                // fallback
+                // Generic fallback
                 binding.fileName.text =
                     makeTextWithTitle(context, R.string.label_file_name, song.title)
                 binding.trackLength.text = makeTextWithTitle(
@@ -141,9 +175,10 @@ class SongDetailDialog : DialogFragment() {
         }
 
         private fun getFileSizeString(sizeInBytes: Long): String {
-            val fileSizeInKB = sizeInBytes / 1024
-            val fileSizeInMB = fileSizeInKB / 1024
-            return "$fileSizeInMB MB"
+            if (sizeInBytes <= 0) return "0 B"
+            val units = arrayOf("B", "KB", "MB", "GB", "TB")
+            val digitGroups = (Math.log10(sizeInBytes.toDouble()) / Math.log10(1024.0)).toInt()
+            return String.format(Locale.ROOT, "%.2f %s", sizeInBytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
         }
     }
 }
