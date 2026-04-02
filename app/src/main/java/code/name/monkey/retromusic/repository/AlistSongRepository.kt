@@ -218,7 +218,8 @@ class AlistSongRepository(private val context: Context) : SongRepository {
         )
     }
 
-    suspend fun fetchAndStoreMetadata(songId: Long, rawUrl: String) = withContext(Dispatchers.IO) {
+    suspend fun fetchAndStoreMetadata(songId: Long, rawUrl: String) {
+        withContext(Dispatchers.IO) {
         val retriever = android.media.MediaMetadataRetriever()
         try {
             retriever.setDataSource(rawUrl, HashMap())
@@ -241,6 +242,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             Log.e(TAG, "Failed to fetch metadata for $rawUrl", e)
         } finally {
             retriever.release()
+        }
         }
     }
 }
