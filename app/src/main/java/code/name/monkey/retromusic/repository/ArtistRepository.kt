@@ -165,47 +165,43 @@ class RealArtistRepository(
     }
 
     fun splitIntoArtists(albums: List<Album>): List<Artist> {
-        val songToArtistIds = albums.flatMap { it.songs }
-            .associateWith { song ->
-                song.artistIds
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotEmpty() }
-                    ?: emptyList()
-            }
-
         val songToArtistIdNamePairs = albums.flatMap { it.songs }
             .associateWith { song ->
                 val ids = song.artistIds
-                    ?.split(",")
-                    ?.map { it.trim() } 
+                    ?.split(",", "&", "/")
+                    ?.map { it.trim() }
                     ?.filter { it.isNotEmpty() }
-                    ?: emptyList()
+                    ?.take(1) // Pick only the first artist
+                    ?: listOf(song.artistId.toString())
                 val names = song.artistNames
-                    ?.split(",")
-                    ?.map { it.trim() } 
+                    ?.split(",", "&", "/")
+                    ?.map { it.trim() }
                     ?.filter { it.isNotEmpty() }
-                    ?: emptyList()
-                ids.zip(names) 
-        }
-            
-        val allArtistIds = songToArtistIds.values.flatten().toSet()
-            
-        return allArtistIds.map { artistId ->
+                    ?.take(1) // Pick only the first artist
+                    ?: listOf(song.artistName)
+                ids.zip(names)
+            }
+
+        // Group by Name instead of ID to merge Alist and Local artists
+        val allArtistPairs = songToArtistIdNamePairs.values.flatten().toSet()
+        val artistsByName = allArtistPairs.groupBy { it.second }
+
+        return artistsByName.map { (name, pairs) ->
+            val artistIds = pairs.map { it.first }.toSet()
+            val representativeId = pairs.first().first.toLongOrNull() ?: 0L
+
             val artistAlbums = albums.mapNotNull { album ->
                 val songsForArtist = album.songs.filter { song ->
-                    artistId in (songToArtistIds[song] ?: emptyList())
-                    }
+                    val currentSongArtistIds = songToArtistIdNamePairs[song]?.map { it.first } ?: emptyList()
+                    currentSongArtistIds.any { it in artistIds }
+                }
                 if (songsForArtist.isNotEmpty()) {
                     album.copy(songs = songsForArtist)
                 } else null
             }
-            val name = songToArtistIdNamePairs.values
-                .flatten()
-                .firstOrNull { it.first == artistId }
-                ?.second ?: "Unknown"
+
             Artist(
-                id = artistId.toLongOrNull() ?: 0L,
+                id = representativeId,
                 albums = artistAlbums,
                 _name = name
             )

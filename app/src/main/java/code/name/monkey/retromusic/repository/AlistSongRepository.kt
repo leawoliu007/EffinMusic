@@ -130,7 +130,6 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     suspend fun scanFolders() {
         val folders = alistDao.getAllFolders()
         for (folder in folders) {
-            // Use separate try-catch for each folder to ensure one fail doesn't stop all
             scanFolder(folder.serverId, folder.remotePath)
         }
     }
@@ -190,10 +189,16 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                 }
                 playlistDao.insertSongsToPlaylist(playlistSongs)
             }
+            Unit
         } catch (e: Exception) {
             Log.e(TAG, "Error scanning subpath $path: ${e.message}")
-            // Just return for this branch, don't crash
         }
+    }
+
+    private fun cleanArtist(artist: String?): String {
+        if (artist == null) return "Unknown"
+        // Split by &, /, or , and take the first part
+        return artist.split("&", "/", ",").first().trim()
     }
 
     private fun fileToEntity(server: AlistServerEntity, file: AlistFile, parentPath: String): AlistSongEntity {
@@ -207,6 +212,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             title = nameWithoutExtension.substringAfter(" - ").trim()
         }
 
+        artist = cleanArtist(artist)
         val album = if (parentPath == "/" || parentPath.isEmpty()) "Alist" else parentPath.trimEnd('/').substringAfterLast('/')
         val remotePath = if (parentPath == "/") "/${file.name}" else "$parentPath/${file.name}"
         val idValue = (server.url + remotePath).hashCode().toLong()
@@ -228,7 +234,7 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             artistId = generatedArtistId,
             artistName = artist,
             composer = null,
-            albumArtist = null,
+            albumArtist = artist,
             artistIds = generatedArtistId.toString(),
             artistNames = artist,
             sign = file.sign,
@@ -282,7 +288,8 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                 val existingSong = alistDao.getSongById(songId)
                 if (existingSong != null) {
                     val finalTitle = if (title.isNullOrEmpty()) existingSong.title else title
-                    val finalArtist = if (artistStr.isNullOrEmpty()) existingSong.artistName else artistStr
+                    val finalArtistRaw = if (artistStr.isNullOrEmpty()) existingSong.artistName else artistStr
+                    val finalArtist = cleanArtist(finalArtistRaw)
                     val finalAlbum = if (albumStr.isNullOrEmpty()) existingSong.albumName else albumStr
                     val finalYear = if (yearStr.isNullOrEmpty()) existingSong.year else yearStr
                     
@@ -290,9 +297,10 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
                     Log.d(TAG, "Updating metadata for $songId: $finalTitle, Artist: $finalArtist, Duration: $durationValue")
                     
-                    alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
-                    playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
+                    alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
+                    playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
                 }
+                Unit
             } catch (e: Exception) {
                 Log.e(TAG, "Metadata extraction failed: ${e.message}")
             } finally {
