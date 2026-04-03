@@ -11,18 +11,19 @@ import code.name.monkey.retromusic.db.AlistFolderEntity
 
 class AlistFolderListAdapter(
     private var folders: List<AlistFolderEntity>,
+    private val onScanClicked: (AlistFolderEntity) -> Unit,
     private val onDeleteClicked: (AlistFolderEntity) -> Unit
 ) : RecyclerView.Adapter<AlistFolderListAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.title)
         val path: TextView = view.findViewById(R.id.text)
-        val icon: ImageView = view.findViewById(R.id.image)
-        val deleteBtn: View = view.findViewById(R.id.menu)
+        val scanBtn: View = view.findViewById(R.id.scan_btn)
+        val deleteBtn: View = view.findViewById(R.id.delete_btn)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_list, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_alist_folder, parent, false)
         return ViewHolder(view)
     }
 
@@ -30,8 +31,8 @@ class AlistFolderListAdapter(
         val folder = folders[position]
         holder.name.text = folder.name
         holder.path.text = folder.remotePath
-        holder.icon.setImageResource(R.drawable.ic_folder)
-        (holder.deleteBtn as? ImageView)?.setImageResource(R.drawable.ic_delete)
+        
+        holder.scanBtn.setOnClickListener { onScanClicked(folder) }
         holder.deleteBtn.setOnClickListener { onDeleteClicked(folder) }
     }
 

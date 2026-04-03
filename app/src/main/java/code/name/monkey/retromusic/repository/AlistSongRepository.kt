@@ -73,11 +73,16 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     )
 
     suspend fun resolvePlaybackUrl(song: Song): String? {
-        val alistSong = alistDao.getSongById(song.id) ?: return null
-        val server = alistDao.getServerById(alistSong.serverId) ?: return null
-        val service = AlistClient.create(server.url, server.token)
-        val response = service.getFile(AlistFsGetRequest(alistSong.data), server.token)
-        return response.data?.rawUrl
+        return try {
+            val alistSong = alistDao.getSongById(song.id) ?: return null
+            val server = alistDao.getServerById(alistSong.serverId) ?: return null
+            val service = AlistClient.create(server.url, server.token)
+            val response = service.getFile(AlistFsGetRequest(alistSong.data), server.token)
+            response.data?.rawUrl
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve playback URL for ${song.title}: ${e.message}")
+            null
+        }
     }
 
     private fun generatePlaylistName(server: AlistServerEntity, path: String): String {
@@ -86,18 +91,15 @@ class AlistSongRepository(private val context: Context) : SongRepository {
             if (server.name.isNotBlank()) {
                 server.name
             } else {
-                // Sanitize URL: Remove protocol and trailing slashes
                 server.url.removePrefix("https://").removePrefix("http://").trimEnd('/')
             }
         } else {
-            // Get the last segment of the path (the chosen folder C from A/B/C)
             trimmed.substringAfterLast('/')
         }
     }
 
     private suspend fun getOrCreatePlaylistForFolder(server: AlistServerEntity, path: String): Long {
         val playlistName = generatePlaylistName(server, path)
-        // Use a consistent negative ID based on the unique path to keep it stable
         val playlistId = -Math.abs((server.url + path).hashCode().toLong())
         
         val allPlaylists = playlistDao.playlists()
@@ -115,15 +117,20 @@ class AlistSongRepository(private val context: Context) : SongRepository {
     }
 
     suspend fun scanFolder(serverId: Long, path: String) {
-        val server = alistDao.getServerById(serverId) ?: return
-        val service = AlistClient.create(server.url, server.token)
-        val playlistId = getOrCreatePlaylistForFolder(server, path)
-        scanFolderInternal(server, service, path, 0, playlistId)
+        try {
+            val server = alistDao.getServerById(serverId) ?: return
+            val service = AlistClient.create(server.url, server.token)
+            val playlistId = getOrCreatePlaylistForFolder(server, path)
+            scanFolderInternal(server, service, path, 0, playlistId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Scan failed for server $serverId at $path: ${e.message}")
+        }
     }
 
     suspend fun scanFolders() {
         val folders = alistDao.getAllFolders()
         for (folder in folders) {
+            // Use separate try-catch for each folder to ensure one fail doesn't stop all
             scanFolder(folder.serverId, folder.remotePath)
         }
     }
@@ -142,45 +149,50 @@ class AlistSongRepository(private val context: Context) : SongRepository {
 
     private suspend fun scanFolderInternal(server: AlistServerEntity, service: AlistService, path: String, depth: Int, playlistId: Long) {
         if (depth > MAX_SCAN_DEPTH) return
-        val response = service.listFiles(AlistFsListRequest(path), server.token)
-        val list = response.data?.content ?: return
-        val songs = mutableListOf<AlistSongEntity>()
-        for (file in list) {
-            if (file.isDir) {
-                // For subfolders, we'll keep them in the same playlist to avoid creating thousands of playlists
-                scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1, playlistId)
-            } else if (isAudioFile(file.name)) {
-                songs.add(fileToEntity(server, file, path))
+        
+        try {
+            val response = service.listFiles(AlistFsListRequest(path), server.token)
+            val list = response.data?.content ?: return
+            val songs = mutableListOf<AlistSongEntity>()
+            for (file in list) {
+                if (file.isDir) {
+                    scanFolderInternal(server, service, if (path == "/") "/${file.name}" else "$path/${file.name}", depth + 1, playlistId)
+                } else if (isAudioFile(file.name)) {
+                    songs.add(fileToEntity(server, file, path))
+                }
             }
-        }
-        if (songs.isNotEmpty()) {
-            alistDao.insertSongs(songs)
-            val playlistSongs = songs.map { alistSong ->
-                SongEntity(
-                    playlistCreatorId = playlistId,
-                    id = alistSong.id,
-                    title = alistSong.title,
-                    trackNumber = alistSong.trackNumber,
-                    year = alistSong.year,
-                    duration = alistSong.duration,
-                    data = alistSong.data,
-                    dateModified = alistSong.dateModified,
-                    albumId = alistSong.albumId,
-                    albumName = alistSong.albumName,
-                    artistId = alistSong.artistId,
-                    artistName = alistSong.artistName,
-                    composer = alistSong.composer,
-                    albumArtist = alistSong.albumArtist,
-                    artistIds = alistSong.artistIds,
-                    artistNames = alistSong.artistNames,
-                    bitrate = alistSong.bitrate,
-                    size = alistSong.size,
-                    format = alistSong.format,
-                    sampleRate = alistSong.sampleRate,
-                    coverPath = alistSong.coverPath
-                )
+            if (songs.isNotEmpty()) {
+                alistDao.insertSongs(songs)
+                val playlistSongs = songs.map { alistSong ->
+                    SongEntity(
+                        playlistCreatorId = playlistId,
+                        id = alistSong.id,
+                        title = alistSong.title,
+                        trackNumber = alistSong.trackNumber,
+                        year = alistSong.year,
+                        duration = alistSong.duration,
+                        data = alistSong.data,
+                        dateModified = alistSong.dateModified,
+                        albumId = alistSong.albumId,
+                        albumName = alistSong.albumName,
+                        artistId = alistSong.artistId,
+                        artistName = alistSong.artistName,
+                        composer = alistSong.composer,
+                        albumArtist = alistSong.albumArtist,
+                        artistIds = alistSong.artistIds,
+                        artistNames = alistSong.artistNames,
+                        bitrate = alistSong.bitrate,
+                        size = alistSong.size,
+                        format = alistSong.format,
+                        sampleRate = alistSong.sampleRate,
+                        coverPath = alistSong.coverPath
+                    )
+                }
+                playlistDao.insertSongsToPlaylist(playlistSongs)
             }
-            playlistDao.insertSongsToPlaylist(playlistSongs)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error scanning subpath $path: ${e.message}")
+            // Just return for this branch, don't crash
         }
     }
 
@@ -281,7 +293,6 @@ class AlistSongRepository(private val context: Context) : SongRepository {
                     alistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
                     playlistDao.updateSongMetadata(songId, finalTitle, finalArtist, finalAlbum, durationValue, finalYear, trackNumberValue, bitrateValue, existingSong.size, existingSong.format, sampleRateValue, generatedArtistId, finalArtist, generatedArtistId.toString(), finalCoverPath)
                 }
-                Unit
             } catch (e: Exception) {
                 Log.e(TAG, "Metadata extraction failed: ${e.message}")
             } finally {

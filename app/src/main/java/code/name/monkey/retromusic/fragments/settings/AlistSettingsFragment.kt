@@ -53,9 +53,11 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = serverAdapter
 
-        folderAdapter = AlistFolderListAdapter(emptyList()) { folder ->
+        folderAdapter = AlistFolderListAdapter(emptyList(), { folder ->
+            scanSingleFolder(folder)
+        }, { folder ->
             deleteFolder(folder)
-        }
+        })
         binding.foldersRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.foldersRecyclerView.adapter = folderAdapter
 
@@ -64,6 +66,17 @@ class AlistSettingsFragment : AbsMainActivityFragment(R.layout.fragment_alist_se
         }
 
         loadData()
+    }
+
+    private fun scanSingleFolder(folder: AlistFolderEntity) {
+        showToast("Scanning folder: ${folder.name}")
+        lifecycleScope.launch(Dispatchers.IO) {
+            alistRepo.scanFolder(folder.serverId, folder.remotePath)
+            withContext(Dispatchers.Main) {
+                libraryViewModel.forceReload(ReloadType.Playlists)
+                showToast("Scan complete: ${folder.name}")
+            }
+        }
     }
 
     private fun loadData() {
